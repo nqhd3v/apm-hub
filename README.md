@@ -136,7 +136,8 @@ Slash commands of the Chat app of the `two` account. A successful `/add` or `/re
 | Command              | ID  | Does                                                                                                                                                                                       |
 | -------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `/add @member email` | 1   | Adds the mentioned person to the member list, with `email` as their address on the `one` account. If the person or the email already has a row, that row is updated and made active again. |
-| `/remove @member`    | 2   | Ticks `Inactive` on the row of the mentioned person. The row is kept.                                                                                                                      |
+| `/remove @member` | 2 | Ticks `Inactive` on the row of the mentioned person. The row is kept. |
+| `/remove text` | 2 | For a person who left the space and cannot be mentioned: searches `text` (at least 3 characters) in the name and both emails of the member list. Exactly one active match is made inactive; several matches are listed back and nothing is changed. |
 | `/status`            | 3   | Shows the mode (`DEV` or `PRD`), the leave date in `daily_data`, who is off, and the number of active members.                                                                             |
 
 The Chat app can be installed by anyone in the organisation, so every command is limited to active members of the `config` tab: the sender is matched by Chat user ID, or by email on the `two` account. Anyone else gets a refusal. The first members have to be entered in the sheet by hand.

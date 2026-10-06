@@ -43,6 +43,7 @@ describe("parseCommand", () => {
 			thread: "spaces/AAA/threads/T",
 			mention: { id: "42", name: "Bob" },
 			email: "bob@one.example",
+			query: "@Bob Bob@One.example",
 		});
 	});
 

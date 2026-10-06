@@ -5,7 +5,13 @@ import type {
 } from "../chat/types";
 import { getLeavingStatesFromSharedSheet } from "../leave-noti/states";
 import { getSettings, readDevMode } from "../settings";
-import { addMember, isMember, removeMember } from "./members";
+import {
+	addMember,
+	isMember,
+	type MemberMatch,
+	removeMember,
+	removeMemberByQuery,
+} from "./members";
 import { COMMAND, type CommandRequest, parseCommand } from "./request";
 import { formatStatus } from "./status";
 
@@ -13,6 +19,43 @@ interface Reply {
 	text: string;
 	/** Shown to everyone in the space instead of the sender only */
 	visibleToAll?: boolean;
+}
+
+/** Shortest text `/remove` searches for, so that a stray letter cannot match half the list */
+const MIN_QUERY_LENGTH = 3;
+
+function listMatches(matches: MemberMatch[]): string {
+	return matches
+		.map((match) => `• ${match.name} (${match.oneEmail})`)
+		.join("\n");
+}
+
+/** `/remove some-text`, for a person who left the space and cannot be mentioned any more. */
+function removeByQuery(query: string, sender: string): Reply {
+	if (query.length < MIN_QUERY_LENGTH) {
+		return {
+			text: `Usage: \`/remove @member\`, or \`/remove part-of-name-or-email\` (at least ${MIN_QUERY_LENGTH} characters) when the person cannot be mentioned.`,
+		};
+	}
+
+	const result = removeMemberByQuery(query);
+	switch (result.status) {
+		case "removed":
+			return {
+				text: `${sender} set *${result.member.name}* as inactive.`,
+				visibleToAll: true,
+			};
+		case "ambiguous":
+			return {
+				text: `${result.matches.length} members match "${query}", nothing was changed. Type more of the name or email:\n${listMatches(result.matches)}`,
+			};
+		case "inactive":
+			return {
+				text: `Already inactive:\n${listMatches(result.matches)}`,
+			};
+		default:
+			return { text: `No member matches "${query}".` };
+	}
 }
 
 function run(request: CommandRequest): Reply {
@@ -39,14 +82,16 @@ function run(request: CommandRequest): Reply {
 			};
 		}
 		case COMMAND.REMOVE: {
-			if (!mention) return { text: "Usage: `/remove @member`" };
-			if (!removeMember(mention.id)) {
-				return { text: `<users/${mention.id}> is not in the member list.` };
+			if (mention) {
+				if (!removeMember(mention.id)) {
+					return { text: `<users/${mention.id}> is not in the member list.` };
+				}
+				return {
+					text: `${sender} set <users/${mention.id}> as inactive.`,
+					visibleToAll: true,
+				};
 			}
-			return {
-				text: `${sender} set <users/${mention.id}> as inactive.`,
-				visibleToAll: true,
-			};
+			return removeByQuery(request.query, sender);
 		}
 		case COMMAND.STATUS: {
 			const { date, ...states } = getLeavingStatesFromSharedSheet();

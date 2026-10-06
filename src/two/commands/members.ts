@@ -1,6 +1,6 @@
 import { CONFIG_DATA } from "../../shared/config-data";
 import type { ChatUser } from "../chat/types";
-import type { Members } from "../settings";
+import { isInactive, type Members } from "../settings";
 import { getSharedSheet } from "../shared-sheet";
 
 export interface NewMember {
@@ -44,6 +44,36 @@ export function pickRowToAdd(rows: unknown[][], member: NewMember): number {
 	return empty !== -1 ? empty : rows.length;
 }
 
+export interface MemberMatch {
+	/** 0-based index of the row */
+	index: number;
+	name: string;
+	oneEmail: string;
+	inactive: boolean;
+}
+
+/** Member rows whose `one` email, `two` email or name contains `query`, ignoring case. */
+export function searchMemberRows(
+	rows: unknown[][],
+	query: string,
+): MemberMatch[] {
+	const needle = query.trim().toLowerCase();
+	if (!needle) return [];
+
+	return rows.flatMap((row, index) => {
+		const oneEmail = text(row[0]);
+		const name = text(row[2]);
+		if (!oneEmail && !text(row[1])) return [];
+
+		const found = [oneEmail, name, text(row[3])].some((value) =>
+			value.toLowerCase().includes(needle),
+		);
+		return found
+			? [{ index, name: name || oneEmail, oneEmail, inactive: isInactive(row) }]
+			: [];
+	});
+}
+
 function readMemberRows(sheet: GoogleAppsScript.Spreadsheet.Sheet) {
 	return sheet.getRange(CONFIG_DATA.MEMBERS_RANGE).getValues();
 }
@@ -69,18 +99,54 @@ export function addMember(member: NewMember): boolean {
 	return text(rows[index]?.[0]) !== "" || text(rows[index]?.[1]) !== "";
 }
 
-/** Ticks `Inactive` on the row of the Chat user `id`. Returns false when there is no such row. */
-export function removeMember(id: string): boolean {
-	const sheet = getSharedSheet(CONFIG_DATA.TAB);
-	const index = findMemberRow(readMemberRows(sheet), id);
-	if (index === -1) return false;
-
+function tickInactive(
+	sheet: GoogleAppsScript.Spreadsheet.Sheet,
+	index: number,
+): void {
 	sheet
 		.getRange(
 			CONFIG_DATA.MEMBERS_FIRST_ROW + index,
 			CONFIG_DATA.MEMBER_INACTIVE_COL,
 		)
 		.setValue(true);
+}
+
+/** Ticks `Inactive` on the row of the Chat user `id`. Returns false when there is no such row. */
+export function removeMember(id: string): boolean {
+	const sheet = getSharedSheet(CONFIG_DATA.TAB);
+	const index = findMemberRow(readMemberRows(sheet), id);
+	if (index === -1) return false;
+
+	tickInactive(sheet, index);
 
 	return true;
+}
+
+export type RemoveResult =
+	| { status: "removed"; member: MemberMatch }
+	/** The only matches are inactive already */
+	| { status: "inactive"; matches: MemberMatch[] }
+	/** Several active members match, nothing was changed */
+	| { status: "ambiguous"; matches: MemberMatch[] }
+	| { status: "none" };
+
+/** What `/remove some-text` does for the rows matching the text. */
+export function pickMemberToRemove(matches: MemberMatch[]): RemoveResult {
+	const active = matches.filter((match) => !match.inactive);
+	const [member] = active;
+
+	if (member && active.length === 1) return { status: "removed", member };
+	if (active.length > 1) return { status: "ambiguous", matches: active };
+	return matches.length ? { status: "inactive", matches } : { status: "none" };
+}
+
+/** Ticks `Inactive` on the only active row matching `query`, for a person who cannot be mentioned any more. */
+export function removeMemberByQuery(query: string): RemoveResult {
+	const sheet = getSharedSheet(CONFIG_DATA.TAB);
+	const result = pickMemberToRemove(
+		searchMemberRows(readMemberRows(sheet), query),
+	);
+	if (result.status === "removed") tickInactive(sheet, result.member.index);
+
+	return result;
 }

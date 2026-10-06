@@ -28,6 +28,14 @@ function text(value: unknown): string {
 	return String(value ?? "").trim();
 }
 
+/** True when the `Inactive` cell of a member row is set. */
+export function isInactive(row: unknown[]): boolean {
+	// a ticked checkbox is `true`; a typed or pasted value is the text "TRUE"
+	const value = text(row[CONFIG_DATA.MEMBER_INACTIVE_COL - 1]);
+
+	return value.toUpperCase() === "TRUE";
+}
+
 /** Active rows of `one email | chat id | name | two email | inactive`. */
 export function parseMembers(rows: unknown[][]): Members {
 	const members: Members = {};
@@ -35,9 +43,7 @@ export function parseMembers(rows: unknown[][]): Members {
 	for (const row of rows) {
 		const oneEmail = text(row[0]);
 		const id = text(row[1]);
-		// a ticked checkbox is `true`; a typed or pasted value is the text "TRUE"
-		const inactive = text(row[CONFIG_DATA.MEMBER_INACTIVE_COL - 1]);
-		if (!oneEmail || !id || inactive.toUpperCase() === "TRUE") continue;
+		if (!oneEmail || !id || isInactive(row)) continue;
 
 		members[oneEmail] = { id, name: text(row[2]), email: text(row[3]) };
 	}

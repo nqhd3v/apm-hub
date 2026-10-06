@@ -25,6 +25,8 @@ export interface CommandRequest {
 	mention: Mention | null;
 	/** First email typed in the command, lowercased */
 	email: string | null;
+	/** What was typed after the command name */
+	query: string;
 }
 
 const EMAIL = /[^\s<>()|,;:]+@[^\s<>()|,;:]+\.[a-z]{2,}/i;
@@ -52,5 +54,6 @@ export function parseCommand(event: CommandEvent): CommandRequest | null {
 		thread: message?.thread?.name ?? "",
 		mention: mentioned && id ? { id, name: mentioned.displayName ?? "" } : null,
 		email: EMAIL.exec(text)?.[0].toLowerCase() ?? null,
+		query: text.replace(/^\s*\/\S+/, "").trim(),
 	};
 }

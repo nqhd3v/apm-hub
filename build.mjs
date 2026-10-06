@@ -9,6 +9,9 @@ import { build } from "esbuild";
 
 const GLOBAL = "_app";
 // First lines of every Code.js, for whoever opens it in the Apps Script editor
+const TIMEZONE = "Asia/Ho_Chi_Minh";
+// "sv-SE" formats as YYYY-MM-DD HH:mm:ss
+const builtAt = new Date().toLocaleString("sv-SE", { timeZone: TIMEZONE });
 const BANNER = `/**
  * apm-hub
  *
@@ -16,6 +19,7 @@ const BANNER = `/**
  * Source: https://github.com/nqhd3v/apm-hub
  * To improve something, open a pull request on that repository.
  * Author: nqhd3v
+ * Built: ${builtAt} (${TIMEZONE})
  */`;
 // IDs injected into the bundle of each account: config key -> environment variable
 const SECRETS = {
