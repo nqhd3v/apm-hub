@@ -1,0 +1,23 @@
+{
+	"timeZone": "Asia/Ho_Chi_Minh",
+	"dependencies": {
+		"enabledAdvancedServices": [
+			{
+				"userSymbol": "Sheets",
+				"version": "v4",
+				"serviceId": "sheets"
+			},
+			{
+				"userSymbol": "Chat",
+				"version": "v1",
+				"serviceId": "chat"
+			}
+		]
+	},
+	"exceptionLogging": "STACKDRIVER",
+	"runtimeVersion": "V8",
+	"webapp": {
+		"executeAs": "USER_DEPLOYING",
+		"access": "MYSELF"
+	}
+}

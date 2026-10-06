@@ -1,0 +1,8 @@
+{
+	"SHEET_NAME": "2026 Day-off",
+	"MEMBER_START_ROW": 4,
+	"MEMBER_END_ROW": 42,
+	"MEMBER_NAME_COL": 2,
+	"DATE_ROW": 3,
+	"SKIP_ROWS": [20, 29]
+}

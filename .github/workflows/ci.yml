@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+      - name: Build
+        if: github.event_name == 'push'
+        env:
+          SHARED_SPREADSHEET_ID: ${{ secrets.SHARED_SPREADSHEET_ID }}
+          # plan spreadsheet read by account one
+          CALENDAR_SPREADSHEET_ID: ${{ secrets.CALENDAR_SPREADSHEET_ID }}
+          # Apps Script project of each account (editor, Project Settings, IDs)
+          ONE_SCRIPT_ID: ${{ secrets.ONE_SCRIPT_ID }}
+          TWO_SCRIPT_ID: ${{ secrets.TWO_SCRIPT_ID }}
+        run: npm run build
+
+      - name: Push to Apps Script
+        if: github.event_name == 'push'
+        env:
+          # content of ~/.clasprc.json after `npx clasp login` on each account
+          CLASPRC_ONE: ${{ secrets.CLASPRC_ONE }}
+          CLASPRC_TWO: ${{ secrets.CLASPRC_TWO }}
+        run: |
+          failed=0
+          deploy() {
+            if [ -z "$2" ]; then
+              echo "::warning::CLASPRC secret of '$1' is not set, skipping its deploy."
+              return 0
+            fi
+            printf '%s' "$2" > ~/.clasprc.json
+            (cd "dist/$1" && npx clasp push --force) || { echo "::error::Deploy of '$1' failed."; failed=1; }
+          }
+          deploy one "$CLASPRC_ONE"
+          deploy two "$CLASPRC_TWO"
+          rm -f ~/.clasprc.json
+          exit $failed
