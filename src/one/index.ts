@@ -5,7 +5,8 @@ import { pickLeaveRows, readPlanRows } from "./leave-state/plan";
 import { updateSharedSheet } from "./leave-state/publish";
 import { createWorklogCard } from "./worklogs/cards";
 import { fetchWorklogs, jiraBaseUrl, worklogSearchUrl } from "./worklogs/jira";
-import { readDevMode, sendToWebhook } from "./worklogs/send";
+import { sendToWebhook } from "./worklogs/send";
+import { readDevMode, readWorklogTeam } from "./worklogs/settings";
 import {
 	getLastWorkday,
 	isWeekend,
@@ -38,18 +39,20 @@ export function worklogsDaily(): void {
 	}
 
 	const day = getLastWorkday();
-	const members = summarizeWorklogs(fetchWorklogs(day), day);
+	const team = readWorklogTeam();
+	const { issues, teamId } = fetchWorklogs(day, team);
+	const members = summarizeWorklogs(issues, day);
 	Logger.log(`Worklogs of ${day.iso}: ${JSON.stringify(members)}`);
 
 	const dev = readDevMode();
 	sendToWebhook(
-		createWorklogCard(
-			members,
-			day.label,
-			jiraBaseUrl(),
-			worklogSearchUrl(day),
+		createWorklogCard(members, {
+			date: day.label,
+			jiraUrl: jiraBaseUrl(),
+			searchUrl: worklogSearchUrl(day, teamId),
+			team,
 			dev,
-		),
+		}),
 		dev ? CONFIG.WORKLOG_DEV_WEBHOOK_URL : CONFIG.WORKLOG_WEBHOOK_URL,
 	);
 }

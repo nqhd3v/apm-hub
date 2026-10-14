@@ -1,5 +1,6 @@
 import { CONFIG } from "../config";
 import type { IssueWorklogs, JiraWorklog, Workday } from "./summary";
+import { findTeamField, type JiraField, teamOf } from "./team";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Worklog requests sent at once, to stay under Jira's rate limit */
@@ -42,53 +43,102 @@ function parse<T>(
 	return JSON.parse(body) as T;
 }
 
-/** JQL of the project's issues with a worklog on `day`. */
-function worklogJql(day: Pick<Workday, "iso">): string {
-	return `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate = "${day.iso}"`;
+/**
+ * Issue search link of the project's worklogs on `day`, for people to check
+ * the report in Jira. Limited to `teamId` when given.
+ */
+export function worklogSearchUrl(
+	day: Pick<Workday, "iso">,
+	teamId?: string,
+): string {
+	const team = teamId ? ` AND "Team[Team]" = "${teamId}"` : "";
+	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate = "${day.iso}"${team}`;
+	return `${jiraBaseUrl()}/issues/?jql=${encodeURIComponent(jql)}`;
 }
 
-/** Issue search link, for people to check the report in Jira. */
-export function worklogSearchUrl(day: Pick<Workday, "iso">): string {
-	return `${jiraBaseUrl()}/issues/?jql=${encodeURIComponent(worklogJql(day))}`;
+interface SearchIssue {
+	key: string;
+	fields: Record<string, unknown> & { summary?: string };
 }
 
 interface SearchPage {
-	issues: { key: string; fields: { summary?: string } }[];
+	issues: SearchIssue[];
 	nextPageToken?: string;
 }
 
 function searchIssues(
 	jql: string,
+	fields: string[],
 	auth: string,
-): { key: string; summary: string }[] {
-	const issues: { key: string; summary: string }[] = [];
+): SearchIssue[] {
+	const issues: SearchIssue[] = [];
 	let nextPageToken: string | undefined;
 
 	do {
 		const req = request("/rest/api/3/search/jql", auth, {
 			jql,
-			fields: ["summary"],
+			fields,
 			maxResults: 100,
 			nextPageToken,
 		});
 		const page = parse<SearchPage>(UrlFetchApp.fetch(req.url, req), req.url);
-		for (const issue of page.issues) {
-			issues.push({ key: issue.key, summary: issue.fields.summary ?? "" });
-		}
+		issues.push(...page.issues);
 		nextPageToken = page.nextPageToken;
 	} while (nextPageToken);
 
 	return issues;
 }
 
-/** Issues of the project with their worklogs started around `day`. */
-export function fetchWorklogs(day: Workday): IssueWorklogs[] {
+/** Id of the Team field of the site (`customfield_...`). */
+function getTeamFieldId(auth: string): string {
+	const req = request("/rest/api/3/field", auth);
+	const field = findTeamField(
+		parse<JiraField[]>(UrlFetchApp.fetch(req.url, req), req.url),
+	);
+	if (!field) throw new Error("Jira has no Team field.");
+
+	return field.id;
+}
+
+export interface FetchedWorklogs {
+	issues: IssueWorklogs[];
+	/** Id of the team named `team`, when one of the issues belongs to it */
+	teamId?: string;
+}
+
+/**
+ * Issues of the project with their worklogs started around `day`.
+ * When `team` is set, only issues whose Team is named exactly `team`.
+ */
+export function fetchWorklogs(day: Workday, team = ""): FetchedWorklogs {
 	const auth = authHeader();
+	const teamField = team ? getTeamFieldId(auth) : "";
 	// `worklogDate` uses the timezone of the Jira account, so widen by a day
 	// on each side; `summarizeWorklogs` keeps the exact day.
 	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate >= "${isoShift(day.iso, -1)}" AND worklogDate <= "${isoShift(day.iso, 1)}"`;
-	const issues = searchIssues(jql, auth);
-	Logger.log(`Jira: ${issues.length} issue(s) for ${jql}`);
+	const found = searchIssues(
+		jql,
+		teamField ? ["summary", teamField] : ["summary"],
+		auth,
+	);
+	Logger.log(`Jira: ${found.length} issue(s) for ${jql}`);
+
+	let teamId: string | undefined;
+	const issues = found
+		.filter((issue) => {
+			if (!team) return true;
+			const issueTeam = teamOf(issue.fields[teamField]);
+			if (issueTeam?.name !== team) return false;
+			teamId = issueTeam.id;
+			return true;
+		})
+		.map((issue) => ({ key: issue.key, summary: issue.fields.summary ?? "" }));
+	if (team) {
+		const names = new Set(found.map((i) => teamOf(i.fields[teamField])?.name));
+		Logger.log(
+			`Team "${team}": ${issues.length} issue(s). Teams seen: ${JSON.stringify([...names])}`,
+		);
+	}
 
 	const result: IssueWorklogs[] = [];
 	for (let i = 0; i < issues.length; i += PARALLEL) {
@@ -112,7 +162,7 @@ export function fetchWorklogs(day: Workday): IssueWorklogs[] {
 		});
 	}
 
-	return result;
+	return { issues: result, teamId };
 }
 
 /** `YYYY-MM-DD` moved by `days` */

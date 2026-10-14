@@ -132,18 +132,23 @@ Edited by hand or with the [Chat commands](#chat-commands), and read by the `two
 | `B3`   | ID of the team space, without the `spaces/` prefix                                                                                                      |
 | `C3`   | ID of the test space, used in dev mode                                                                                                                  |
 | `D3`   | Manager as `users/{id}`, addressed directly by the reaction check. Optional                                                                             |
+| `E3`   | Team of the [worklog report](#worklog-report), read by `one`: exact Jira team name such as `AM`. Empty for every team. Optional                         |
 | `A8:E` | One member per row: email on the `one` account, Google Chat user ID, name shown on the card, email on the `two` account (optional), `Inactive` checkbox |
 
 A person on leave who has no row here, or whose row is ticked `Inactive`, is left out of the card. Keep the Chat user ID column formatted as plain text, otherwise Sheets rounds the long number.
 
 ## Worklog report
 
-`worklogsDaily` of account `one` runs around 08:50 and does nothing on Saturday and Sunday. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card through a Chat incoming webhook. The shared sheet is only read for the mode flag: while `daily_data!E9` is `DEV`, the card goes to `WORKLOG_DEV_WEBHOOK_URL` with a `[DEV]` title.
+`worklogsDaily` of account `one` runs around 08:50 and does nothing on Saturday and Sunday. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card through a Chat incoming webhook. From the shared sheet it only reads two cells:
+
+- `config!E3`, the team: when set, only issues whose Team field is named exactly that value (case and spaces inside count) are reported, like `"Team[Team]" = AM` in Jira. When empty, every issue of the project is;
+- `daily_data!E9`, the mode flag: while it is `DEV`, the card goes to `WORKLOG_DEV_WEBHOOK_URL` with a `[DEV]` title.
 
 The card:
 
 - title `Worklogs in last workday`, subtitle the day as `DD/MM/YYYY`;
-- one row per person who logged time, most time first: total, then each issue with a link, its time and summary;
+- the team, the number of members and the total time above the rows;
+- one row per person who logged time, most time first: name and total, then the keys of the issues, each a link, such as `APM-41132 · APM-41287`;
 - a total under 8h is orange, 8h or more is green;
 - an `Open in Jira` button opens the same search in Jira.
 

@@ -6,7 +6,6 @@ export const FULL_DAY_SECONDS = 8 * 60 * 60;
 
 const GREEN = "#188038";
 const ORANGE = "#e37400";
-const GREY = "#5f6368";
 
 function icon(name: string, fill: boolean): Icon {
 	return { materialIcon: { name, fill } };
@@ -23,35 +22,42 @@ function plural(count: number, word: string): string {
 	return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
+/** `Name 13h 30m`, then the keys of the issues worked on, most time first. */
 function memberWidget(member: MemberWorklogs, jiraUrl: string): Widget {
 	const full = member.seconds >= FULL_DAY_SECONDS;
 	const total = `<font color="${full ? GREEN : ORANGE}"><b>${formatDuration(member.seconds)}</b></font>`;
 	const issues = member.issues
-		.map(
-			(issue) =>
-				`<a href="${jiraUrl}/browse/${issue.key}">${issue.key}</a> ${formatDuration(issue.seconds)} <font color="${GREY}">${escapeHtml(issue.summary)}</font>`,
-		)
-		.join("<br>");
+		.map((i) => `<a href="${jiraUrl}/browse/${i.key}">${i.key}</a>`)
+		.join(" · ");
 
 	return {
 		decoratedText: {
-			topLabel: plural(member.issues.length, "issue"),
-			text: `<b>${escapeHtml(member.name)}</b>  ${total}<br>${issues}`,
+			text: `<b>${escapeHtml(member.name)}</b> ${total}<br>${issues}`,
 			wrapText: true,
 			icon: icon(full ? "check_circle" : "schedule", full),
 		},
 	};
 }
 
+export interface WorklogCardOptions {
+	/** `DD/MM/YYYY` */
+	date: string;
+	/** Jira site, for issue links */
+	jiraUrl: string;
+	/** Jira search of the same worklogs, opened by the button */
+	searchUrl: string;
+	/** Team the report is limited to, "" for every team */
+	team?: string;
+	dev?: boolean;
+}
+
 /** Worklog summary card of the last workday, one row per member, most time first. */
 export function createWorklogCard(
 	members: MemberWorklogs[],
-	date: string,
-	jiraUrl: string,
-	searchUrl: string,
-	dev = false,
+	{ date, jiraUrl, searchUrl, team = "", dev = false }: WorklogCardOptions,
 ): ChatMessage {
 	const total = members.reduce((sum, m) => sum + m.seconds, 0);
+	const scope = team ? `${escapeHtml(team)} · ` : "";
 	const widgets: Widget[] = members.length
 		? members.map((m) => memberWidget(m, jiraUrl))
 		: [
@@ -74,7 +80,7 @@ export function createWorklogCard(
 					},
 					sections: [
 						{
-							header: `${plural(members.length, "member")} · ${formatDuration(total)} logged`,
+							header: `${scope}${plural(members.length, "member")} · ${formatDuration(total)} logged`,
 							widgets: [
 								...widgets,
 								{ divider: {} },
