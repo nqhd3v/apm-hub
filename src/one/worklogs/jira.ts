@@ -1,5 +1,10 @@
 import { CONFIG } from "../config";
-import type { IssueWorklogs, JiraWorklog, Workday } from "./summary";
+import {
+	type IssueWorklogs,
+	type JiraWorklog,
+	type Workday,
+	workingDaySeconds,
+} from "./summary";
 import { findTeamField, type JiraField, teamOf } from "./team";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -87,6 +92,21 @@ function searchIssues(
 	} while (nextPageToken);
 
 	return issues;
+}
+
+/** Length of a working day in the time tracking settings of Jira, 8h when it cannot be read. */
+export function fetchWorkingDaySeconds(): number {
+	const req = request("/rest/api/3/configuration", authHeader());
+	try {
+		const seconds = workingDaySeconds(
+			parse<unknown>(UrlFetchApp.fetch(req.url, req), req.url),
+		);
+		Logger.log(`Jira working day: ${seconds / 3600}h`);
+		return seconds;
+	} catch (error) {
+		Logger.log(`Cannot read the Jira working day, using the default: ${error}`);
+		return workingDaySeconds(null);
+	}
 }
 
 /** Id of the Team field of the site (`customfield_...`). */

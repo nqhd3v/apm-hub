@@ -6,6 +6,7 @@ import {
 	isWeekend,
 	parseJiraDate,
 	summarizeWorklogs,
+	workingDaySeconds,
 } from "../../../src/one/worklogs/summary";
 
 /** `hour` o'clock of 2026-10-`day` in Asia/Ho_Chi_Minh */
@@ -99,4 +100,16 @@ describe("summarizeWorklogs", () => {
 			},
 		]);
 	});
+});
+
+test("workingDaySeconds reads Jira's working day, else 8h", () => {
+	const config = (hours: unknown) => ({
+		timeTrackingConfiguration: { workingHoursPerDay: hours },
+	});
+
+	expect(workingDaySeconds(config(7.5))).toBe(7.5 * 3600);
+	expect(workingDaySeconds(config(0))).toBe(8 * 3600);
+	expect(workingDaySeconds(config("8"))).toBe(8 * 3600);
+	expect(workingDaySeconds({})).toBe(8 * 3600);
+	expect(workingDaySeconds(null)).toBe(8 * 3600);
 });

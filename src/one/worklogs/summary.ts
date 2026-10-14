@@ -52,6 +52,25 @@ export function getLastWorkday(now: number = Date.now()): Workday {
 	};
 }
 
+/** Length of a working day when Jira does not tell it */
+export const DEFAULT_DAY_SECONDS = 8 * 60 * 60;
+
+/**
+ * Length of a working day from `GET /rest/api/3/configuration`
+ * (`timeTrackingConfiguration.workingHoursPerDay`), or the default.
+ */
+export function workingDaySeconds(configuration: unknown): number {
+	const hours = (
+		configuration as {
+			timeTrackingConfiguration?: { workingHoursPerDay?: unknown };
+		} | null
+	)?.timeTrackingConfiguration?.workingHoursPerDay;
+
+	return typeof hours === "number" && hours > 0
+		? Math.round(hours * 3600)
+		: DEFAULT_DAY_SECONDS;
+}
+
 /** `2h`, `1h 30m`, `45m`, `0h` */
 export function formatDuration(seconds: number): string {
 	const minutes = Math.round(seconds / 60);

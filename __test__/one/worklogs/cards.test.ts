@@ -51,6 +51,32 @@ describe("createWorklogCard", () => {
 		expect(JSON.stringify(section)).toContain("https://jira/search");
 	});
 
+	test("warns under 2/3 of the working day of Jira", () => {
+		const iconOf = (seconds: number, daySeconds: number) =>
+			JSON.stringify(
+				createWorklogCard(
+					[
+						{
+							accountId: "a",
+							name: "A",
+							seconds,
+							issues: [{ key: "APM-1", summary: "", seconds }],
+						},
+					],
+					{ ...options, daySeconds },
+				).cardsV2?.[0]?.card.sections[0]?.widgets[0],
+			);
+
+		const hour = 3600;
+		// 8h day: warning under 5h 20m
+		expect(iconOf(5.5 * hour, 8 * hour)).toContain("check_circle");
+		expect(iconOf((16 / 3) * hour, 8 * hour)).toContain("check_circle");
+		expect(iconOf(5 * hour, 8 * hour)).toContain("schedule");
+		// 6h day: warning under 4h
+		expect(iconOf(4 * hour, 6 * hour)).toContain("check_circle");
+		expect(iconOf(3.5 * hour, 6 * hour)).toContain("schedule");
+	});
+
 	test("names the team in the section header", () => {
 		const message = createWorklogCard([], { ...options, team: "AM" });
 

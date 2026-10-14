@@ -4,7 +4,12 @@ import { CONFIG } from "./config";
 import { pickLeaveRows, readPlanRows } from "./leave-state/plan";
 import { updateSharedSheet } from "./leave-state/publish";
 import { createWorklogCard } from "./worklogs/cards";
-import { fetchWorklogs, jiraBaseUrl, worklogSearchUrl } from "./worklogs/jira";
+import {
+	fetchWorkingDaySeconds,
+	fetchWorklogs,
+	jiraBaseUrl,
+	worklogSearchUrl,
+} from "./worklogs/jira";
 import { sendToWebhook } from "./worklogs/send";
 import { readDevMode, readWorklogTeam } from "./worklogs/settings";
 import {
@@ -50,6 +55,7 @@ export function worklogsDaily(): void {
 			date: day.label,
 			jiraUrl: jiraBaseUrl(),
 			searchUrl: worklogSearchUrl(day, teamId),
+			daySeconds: fetchWorkingDaySeconds(),
 			team,
 			dev,
 		}),

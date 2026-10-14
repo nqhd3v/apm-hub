@@ -149,7 +149,7 @@ The card:
 - title `Worklogs in last workday`, subtitle the day as `DD/MM/YYYY`;
 - the team, the number of members and the total time above the rows;
 - one row per person who logged time, most time first: name and total, then the keys of the issues, each a link, such as `APM-41132 · APM-41287`;
-- a total under 8h is orange, 8h or more is green;
+- a total under 2/3 of the working day of Jira (Settings, Issues, Time tracking, "Working hours per day"; 8h when it cannot be read) gets the orange clock warning, for example under 5h 20m for an 8h day; 2/3 or more gets the green check. Not a full day, because early in a sprint people work more than they log. The share is `WARNING_RATIO` in `src/one/worklogs/cards.ts`;
 - an `Open in Jira` button opens the same search in Jira.
 
 Setup:
