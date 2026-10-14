@@ -60,7 +60,6 @@ export interface WorklogCardOptions {
 	daySeconds?: number;
 	/** Team the report is limited to, "" for every team */
 	team?: string;
-	dev?: boolean;
 }
 
 /** Worklog summary card of the last workday, one row per member, most time first. */
@@ -72,7 +71,6 @@ export function createWorklogCard(
 		searchUrl,
 		daySeconds = DEFAULT_DAY_SECONDS,
 		team = "",
-		dev = false,
 	}: WorklogCardOptions,
 ): ChatMessage {
 	const total = members.reduce((sum, m) => sum + m.seconds, 0);
@@ -94,7 +92,7 @@ export function createWorklogCard(
 				cardId: "worklogReport",
 				card: {
 					header: {
-						title: `${dev ? "[DEV] " : ""}Worklogs in last workday`,
+						title: "Worklogs in last workday",
 						subtitle: date,
 					},
 					sections: [

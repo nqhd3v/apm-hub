@@ -31,9 +31,14 @@ export function isoDate(ms: number): string {
 	return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
-export function isWeekend(now: number = Date.now()): boolean {
-	const { weekday } = localParts(now);
-	return weekday === 0 || weekday === 6;
+/** Epoch milliseconds of `hour:minute` today in the script timezone. */
+export function todayAt(
+	hour: number,
+	minute: number,
+	now: number = Date.now(),
+): number {
+	const { year, month, day } = localParts(now);
+	return Date.UTC(year, month, day, hour, minute) - TZ_OFFSET_MS;
 }
 
 /** Previous Monday-to-Friday day: Friday when run on Monday or during the weekend. */

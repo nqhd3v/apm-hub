@@ -3,9 +3,9 @@ import {
 	formatDuration,
 	getLastWorkday,
 	type IssueWorklogs,
-	isWeekend,
 	parseJiraDate,
 	summarizeWorklogs,
+	todayAt,
 	workingDaySeconds,
 } from "../../../src/one/worklogs/summary";
 
@@ -31,12 +31,6 @@ describe("getLastWorkday", () => {
 			"2026-10-13",
 		);
 	});
-});
-
-test("isWeekend", () => {
-	expect(isWeekend(local(10))).toBe(true);
-	expect(isWeekend(local(11))).toBe(true);
-	expect(isWeekend(local(12))).toBe(false);
 });
 
 test("formatDuration", () => {
@@ -112,4 +106,12 @@ test("workingDaySeconds reads Jira's working day, else 8h", () => {
 	expect(workingDaySeconds(config("8"))).toBe(8 * 3600);
 	expect(workingDaySeconds({})).toBe(8 * 3600);
 	expect(workingDaySeconds(null)).toBe(8 * 3600);
+});
+
+test("todayAt is the local time of the current local day", () => {
+	expect(todayAt(8, 50, local(14, 7))).toBe(Date.UTC(2026, 9, 14, 1, 50));
+	// 00:30 local is still the previous day in UTC
+	expect(todayAt(8, 50, local(14, 0) + 30 * 60 * 1000)).toBe(
+		Date.UTC(2026, 9, 14, 1, 50),
+	);
 });

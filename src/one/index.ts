@@ -1,5 +1,12 @@
 import { getDayToCheck } from "../shared/date";
-import { createDailyTrigger, deleteAllTriggers } from "../shared/triggers";
+import {
+	createDailyTrigger,
+	createTriggerAt,
+	createWeekdayTriggers,
+	deleteAllTriggers,
+	deleteTrigger,
+	deleteTriggersOf,
+} from "../shared/triggers";
 import { CONFIG } from "./config";
 import { pickLeaveRows, readPlanRows } from "./leave-state/plan";
 import { updateSharedSheet } from "./leave-state/publish";
@@ -12,13 +19,12 @@ import {
 } from "./worklogs/jira";
 import { sendToWebhook } from "./worklogs/send";
 import { readDevMode, readWorklogTeam } from "./worklogs/settings";
-import {
-	getLastWorkday,
-	isWeekend,
-	summarizeWorklogs,
-} from "./worklogs/summary";
+import { getLastWorkday, summarizeWorklogs, todayAt } from "./worklogs/summary";
 
 type Entrypoint = keyof typeof import("./index");
+
+/** Exact time of the worklog report, Asia/Ho_Chi_Minh */
+const WORKLOG_REPORT = { hour: 8, minute: 50 } as const;
 
 /** Runs daily: publishes tomorrow's day-off states to the shared sheet. */
 export function leaveStateDaily(): void {
@@ -36,12 +42,32 @@ export function leaveStateDaily(): void {
 	updateSharedSheet(states ?? [], date);
 }
 
-/** Runs daily: posts the Jira worklogs of the last workday, per member, to the team space. Skipped on weekends. */
-export function worklogsDaily(): void {
-	if (isWeekend()) {
-		Logger.log("Weekend, no worklog report");
+/**
+ * Runs Monday to Friday around 07:00: creates today's one-time trigger of
+ * `worklogsDaily` at exactly 08:50, which a recurring trigger cannot do (it
+ * fires within ±15 min).
+ */
+export function scheduleWorklogs(): void {
+	// leftovers of a day the report did not run
+	deleteTriggersOf("worklogsDaily" satisfies Entrypoint);
+	const at = todayAt(WORKLOG_REPORT.hour, WORKLOG_REPORT.minute);
+	if (at <= Date.now()) {
+		Logger.log("08:50 has passed, no worklog report scheduled today");
 		return;
 	}
+
+	createTriggerAt("worklogsDaily" satisfies Entrypoint, at);
+	Logger.log(`Worklog report scheduled at ${new Date(at).toISOString()}`);
+}
+
+/**
+ * Posts the Jira worklogs of the last workday, per member, to the team space.
+ * Called by the one-time trigger of `scheduleWorklogs`, which it deletes, or
+ * by hand from the editor.
+ */
+export function worklogsDaily(e?: GoogleAppsScript.Events.TimeDriven): void {
+	// a one-time trigger stays in the project after it fired
+	if (e?.triggerUid) deleteTrigger(e.triggerUid);
 
 	const day = getLastWorkday();
 	const team = readWorklogTeam();
@@ -57,7 +83,6 @@ export function worklogsDaily(): void {
 			searchUrl: worklogSearchUrl(day, teamId),
 			daySeconds: fetchWorkingDaySeconds(),
 			team,
-			dev,
 		}),
 		dev ? CONFIG.WORKLOG_DEV_WEBHOOK_URL : CONFIG.WORKLOG_WEBHOOK_URL,
 	);
@@ -67,5 +92,5 @@ export function worklogsDaily(): void {
 export function setupTriggers(): void {
 	deleteAllTriggers();
 	createDailyTrigger("leaveStateDaily" satisfies Entrypoint, 13, 30);
-	createDailyTrigger("worklogsDaily" satisfies Entrypoint, 8, 50);
+	createWeekdayTriggers("scheduleWorklogs" satisfies Entrypoint, 7, 0);
 }

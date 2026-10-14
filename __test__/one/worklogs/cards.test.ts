@@ -85,11 +85,11 @@ describe("createWorklogCard", () => {
 		);
 	});
 
-	test("says so when nobody logged, and marks dev", () => {
-		const message = createWorklogCard([], { ...options, dev: true });
+	test("says so when nobody logged", () => {
+		const message = createWorklogCard([], options);
 		const card = message.cardsV2?.[0]?.card;
 
-		expect(card?.header?.title).toBe("[DEV] Worklogs in last workday");
+		expect(card?.header?.title).toBe("Worklogs in last workday");
 		expect(card?.sections[0]?.header).toBe("0 members · 0h logged");
 		expect(JSON.stringify(card)).toContain("No worklog was logged");
 	});
