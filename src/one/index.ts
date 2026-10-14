@@ -3,6 +3,14 @@ import { createDailyTrigger, deleteAllTriggers } from "../shared/triggers";
 import { CONFIG } from "./config";
 import { pickLeaveRows, readPlanRows } from "./leave-state/plan";
 import { updateSharedSheet } from "./leave-state/publish";
+import { createWorklogCard } from "./worklogs/cards";
+import { fetchWorklogs, jiraBaseUrl, worklogSearchUrl } from "./worklogs/jira";
+import { readDevMode, sendToWebhook } from "./worklogs/send";
+import {
+	getLastWorkday,
+	isWeekend,
+	summarizeWorklogs,
+} from "./worklogs/summary";
 
 type Entrypoint = keyof typeof import("./index");
 
@@ -22,8 +30,33 @@ export function leaveStateDaily(): void {
 	updateSharedSheet(states ?? [], date);
 }
 
+/** Runs daily: posts the Jira worklogs of the last workday, per member, to the team space. Skipped on weekends. */
+export function worklogsDaily(): void {
+	if (isWeekend()) {
+		Logger.log("Weekend, no worklog report");
+		return;
+	}
+
+	const day = getLastWorkday();
+	const members = summarizeWorklogs(fetchWorklogs(day), day);
+	Logger.log(`Worklogs of ${day.iso}: ${JSON.stringify(members)}`);
+
+	const dev = readDevMode();
+	sendToWebhook(
+		createWorklogCard(
+			members,
+			day.label,
+			jiraBaseUrl(),
+			worklogSearchUrl(day),
+			dev,
+		),
+		dev ? CONFIG.WORKLOG_DEV_WEBHOOK_URL : CONFIG.WORKLOG_WEBHOOK_URL,
+	);
+}
+
 /** Run this function MANUALLY after the triggers below change. */
 export function setupTriggers(): void {
 	deleteAllTriggers();
 	createDailyTrigger("leaveStateDaily" satisfies Entrypoint, 13, 30);
+	createDailyTrigger("worklogsDaily" satisfies Entrypoint, 8, 50);
 }

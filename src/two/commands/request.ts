@@ -1,4 +1,4 @@
-import type { ChatUser, CommandEvent } from "../chat/types";
+import type { ChatUser, CommandEvent } from "../../shared/chat-types";
 
 /** Command ids, as registered for the Chat app in the Google Cloud console. */
 export const COMMAND = {

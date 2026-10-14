@@ -1,5 +1,11 @@
+import type {
+	Button,
+	ChatMessage,
+	Icon,
+	Section,
+	Widget,
+} from "../../shared/chat-types";
 import { SESSION_MORNING, SESSION_PENDING } from "../../shared/daily-data";
-import type { Button, ChatMessage, Icon, Section, Widget } from "../chat/types";
 import type { MemberLeave } from "./states";
 
 /** Name of the exported handler called by the session buttons. */

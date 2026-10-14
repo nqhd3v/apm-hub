@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import type { CommandEvent, CommandMessage } from "../../../src/two/chat/types";
+import type {
+	CommandEvent,
+	CommandMessage,
+} from "../../../src/shared/chat-types";
 import { createReplyMessage } from "../../../src/two/commands/handle";
 import {
 	findMemberRow,

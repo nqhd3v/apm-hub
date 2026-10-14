@@ -28,6 +28,14 @@ jobs:
           SHARED_SPREADSHEET_ID: ${{ secrets.SHARED_SPREADSHEET_ID }}
           # plan spreadsheet read by account one
           CALENDAR_SPREADSHEET_ID: ${{ secrets.CALENDAR_SPREADSHEET_ID }}
+          # Jira worklog report of account one
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          # incoming webhooks of the team and test spaces, posted to by account one
+          WORKLOG_WEBHOOK_URL: ${{ secrets.WORKLOG_WEBHOOK_URL }}
+          WORKLOG_DEV_WEBHOOK_URL: ${{ secrets.WORKLOG_DEV_WEBHOOK_URL }}
           # Apps Script project of each account (editor, Project Settings, IDs)
           ONE_SCRIPT_ID: ${{ secrets.ONE_SCRIPT_ID }}
           TWO_SCRIPT_ID: ${{ secrets.TWO_SCRIPT_ID }}

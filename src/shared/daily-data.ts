@@ -32,3 +32,8 @@ export const SESSION_MORNING = 1;
 export const SESSION_AFTERNOON = 2;
 
 export const MODE_DEV = "DEV";
+
+/** True when the value of `MODE_CELL` is `DEV`. */
+export function isDevMode(flag: unknown): boolean {
+	return String(flag).trim().toUpperCase() === MODE_DEV;
+}

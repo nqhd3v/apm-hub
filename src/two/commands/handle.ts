@@ -2,7 +2,7 @@ import type {
 	ChatDataActionResponse,
 	ChatMessage,
 	CommandEvent,
-} from "../chat/types";
+} from "../../shared/chat-types";
 import { getLeavingStatesFromSharedSheet } from "../leave-noti/states";
 import { getSettings, readDevMode } from "../settings";
 import {

@@ -1,6 +1,6 @@
+import type { ChatMessage, SentMessage } from "../../shared/chat-types";
 import { getSettings } from "../settings";
 import { getToken } from "./auth";
-import type { ChatMessage, SentMessage } from "./types";
 
 /** `spaces/X` of a message or thread name like `spaces/X/threads/Y`, or `fallback`. */
 export function spaceOf(resourceName: string, fallback: string): string {

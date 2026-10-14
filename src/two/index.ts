@@ -1,6 +1,9 @@
+import type {
+	ChatDataActionResponse,
+	CommandEvent,
+} from "../shared/chat-types";
 import { createDailyTrigger, deleteAllTriggers } from "../shared/triggers";
 import { sendMessageToSpace } from "./chat/send";
-import type { ChatDataActionResponse, CommandEvent } from "./chat/types";
 import { handleCommand } from "./commands/handle";
 import { createMessageLeaveCard } from "./leave-noti/cards";
 import { updateLastMessageConfig } from "./leave-noti/last-message";

@@ -1,5 +1,5 @@
+import type { ChatUser } from "../../shared/chat-types";
 import { CONFIG_DATA } from "../../shared/config-data";
-import type { ChatUser } from "../chat/types";
 import { isInactive, type Members } from "../settings";
 import { getSharedSheet } from "../shared-sheet";
 

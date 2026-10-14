@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { Reaction } from "../../../src/two/chat/types";
+import type { Reaction } from "../../../src/shared/chat-types";
 import {
 	createMessageLeaveCard,
 	HALF_DAY_ACTION,

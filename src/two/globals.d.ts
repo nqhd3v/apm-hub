@@ -3,16 +3,16 @@ declare const Chat: {
 	Spaces: {
 		Messages: {
 			create(
-				message: import("./chat/types").ChatMessage,
+				message: import("../shared/chat-types").ChatMessage,
 				parent: string,
 				optionalArgs?: Record<string, string>,
 				headers?: Record<string, string>,
-			): import("./chat/types").SentMessage;
+			): import("../shared/chat-types").SentMessage;
 			Reactions: {
 				list(
 					parent: string,
 					optionalArgs?: Record<string, string>,
-				): { reactions?: import("./chat/types").Reaction[] };
+				): { reactions?: import("../shared/chat-types").Reaction[] };
 			};
 		};
 	};

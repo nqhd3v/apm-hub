@@ -17,6 +17,7 @@ plan sheet ──► leaveStateDaily ──► date + email/state/session ──
 | Account | Entrypoint               | Runs          | What it does                                                                                 |
 | ------- | ------------------------ | ------------- | -------------------------------------------------------------------------------------------- |
 | one     | `leaveStateDaily`        | daily 13:30   | Reads tomorrow's column of the day-off plan sheet and writes who is off to the shared sheet. |
+| one     | `worklogsDaily`          | weekdays 08:50 | Posts the Jira worklogs of the last workday, per member, to the team space. See [Worklog report](#worklog-report). |
 | two     | `leaveNotiDaily`         | daily 16:30   | Reads the shared sheet and posts the leave reminder card to the team space.                  |
 | two     | `handleHalfDaySelection` | button click  | Records Morning / Afternoon for a half-day leave and updates the card.                       |
 | two     | `checkReactions`         | every 15 min  | Replies once to each negative reaction on the last leave card.                               |
@@ -84,6 +85,12 @@ Repository settings, Secrets and variables, Actions:
 | `TWO_SCRIPT_ID`           | Script ID of the `two` project                                              |
 | `CALENDAR_SPREADSHEET_ID` | ID of the plan sheet                                                        |
 | `SHARED_SPREADSHEET_ID`   | ID of the shared sheet                                                      |
+| `JIRA_BASE_URL`           | Jira site, for example `https://<site>.atlassian.net`                       |
+| `JIRA_PROJECT_KEY`        | Project whose worklogs are reported                                         |
+| `JIRA_EMAIL`              | Atlassian account Jira is read as. It must be able to browse the project    |
+| `JIRA_API_TOKEN`          | API token of that account, see [Worklog report](#worklog-report)            |
+| `WORKLOG_WEBHOOK_URL`     | Incoming webhook of the team space, see [Worklog report](#worklog-report)   |
+| `WORKLOG_DEV_WEBHOOK_URL` | Incoming webhook of the test space, used in dev mode                        |
 
 The second `clasp login` overwrites `~/.clasprc.json`, so save the first one before logging in again.
 
@@ -129,6 +136,25 @@ Edited by hand or with the [Chat commands](#chat-commands), and read by the `two
 
 A person on leave who has no row here, or whose row is ticked `Inactive`, is left out of the card. Keep the Chat user ID column formatted as plain text, otherwise Sheets rounds the long number.
 
+## Worklog report
+
+`worklogsDaily` of account `one` runs around 08:50 and does nothing on Saturday and Sunday. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card through a Chat incoming webhook. The shared sheet is only read for the mode flag: while `daily_data!E9` is `DEV`, the card goes to `WORKLOG_DEV_WEBHOOK_URL` with a `[DEV]` title.
+
+The card:
+
+- title `Worklogs in last workday`, subtitle the day as `DD/MM/YYYY`;
+- one row per person who logged time, most time first: total, then each issue with a link, its time and summary;
+- a total under 8h is orange, 8h or more is green;
+- an `Open in Jira` button opens the same search in Jira.
+
+Setup:
+
+1. Create an API token at <https://id.atlassian.com/manage-profile/security/api-tokens> on the account of `JIRA_EMAIL`. That account must be able to browse the project.
+2. In the team space and in the test space: space name, Apps & integrations, Webhooks, add a webhook. Its URL goes to `WORKLOG_WEBHOOK_URL` and `WORKLOG_DEV_WEBHOOK_URL`.
+3. Save the [GitHub secrets](#4-github-secrets), deploy, then run `setupTriggers` in the `one` editor and accept the new authorisation prompt (calls to external URLs).
+
+The build writes the token and the webhook URLs into the `Code.js` of `one`, so anyone who can open that Apps Script project can read them: keep it unshared, and give the Jira account read access only. Public holidays are not known to the script: the day after a holiday reports the holiday itself.
+
 ## Chat commands
 
 Slash commands of the Chat app of the `two` account. A successful `/add` or `/remove` is announced to everyone in the space where it was typed. Every other reply (`/status`, usage hints, refusals, errors) is only visible to the person who typed the command.
@@ -152,6 +178,7 @@ Each command must be registered once for the Chat app in the Google Cloud consol
 | Layout of the plan sheet                   | `env/one.json`                                              | Merging to `develop`                            |
 | Spreadsheet and script IDs, `clasp` logins | GitHub Actions secrets                                      | Updating the secret, then re-running the deploy |
 | Key of the Chat service account            | Script Property `CHAT_SERVICE_ACCOUNT` of the `two` project | Apps Script editor, Project Settings            |
+| Jira login, worklog webhooks               | GitHub Actions secrets `JIRA_*`, `WORKLOG_*`, built into `one` | Updating the secret, then re-running the deploy |
 
 ### `env/one.json`
 
@@ -173,6 +200,7 @@ Tab name and layout of the plan sheet, typed by `OneEnv` in `src/one/config.ts`.
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `CALENDAR_SPREADSHEET_ID`        | Plan sheet, injected into the bundle of `one`                                                        |
 | `SHARED_SPREADSHEET_ID`          | Shared sheet, injected into the bundle of both accounts                                              |
+| `JIRA_*`, `WORKLOG_WEBHOOK_URL`, `WORKLOG_DEV_WEBHOOK_URL` | Worklog report, injected into the bundle of `one` |
 | `ONE_SCRIPT_ID`, `TWO_SCRIPT_ID` | Apps Script project each account is pushed to (`dist/<account>/.clasp.json`). Not part of the bundle |
 
 In CI they are GitHub Actions secrets. To build locally, copy `.env.example` to `.env` and fill it in; `.env` is ignored by git.
@@ -223,15 +251,17 @@ src/
   shared/             code used by both accounts
     daily-data.ts     contract of the `daily_data` tab: ranges, state and session values
     config-data.ts    contract of the `config` tab
+    chat-types.ts     subset of the Chat REST resources, cards included
     date.ts
     triggers.ts
   one/                project of account `one`
     index.ts          entrypoints
     leave-state/
+    worklogs/         Jira worklog report: read Jira, build the card, post to the webhook
   two/                project of account `two`
     index.ts          entrypoints
     settings.ts       reads the `config` tab: spaces, manager, members
-    chat/             auth, sending, Chat types
+    chat/             auth, sending
     commands/         slash commands: parsing, member list changes, status
     leave-noti/
 __test__/             tests, mirroring src/

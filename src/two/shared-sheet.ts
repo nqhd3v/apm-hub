@@ -1,4 +1,4 @@
-import { DAILY_DATA, MODE_DEV } from "../shared/daily-data";
+import { DAILY_DATA } from "../shared/daily-data";
 import { CONFIG } from "./config";
 
 export function getSharedSheet(
@@ -14,8 +14,4 @@ export function getSharedSheet(
 
 export function getDailyDataSheet(): GoogleAppsScript.Spreadsheet.Sheet {
 	return getSharedSheet(DAILY_DATA.TAB);
-}
-
-export function isDevMode(flag: unknown): boolean {
-	return String(flag).trim().toUpperCase() === MODE_DEV;
 }

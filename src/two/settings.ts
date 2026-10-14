@@ -1,6 +1,6 @@
 import { CONFIG_DATA } from "../shared/config-data";
-import { DAILY_DATA } from "../shared/daily-data";
-import { getDailyDataSheet, getSharedSheet, isDevMode } from "./shared-sheet";
+import { DAILY_DATA, isDevMode } from "../shared/daily-data";
+import { getDailyDataSheet, getSharedSheet } from "./shared-sheet";
 
 export interface Member {
 	/** Google Chat user id */

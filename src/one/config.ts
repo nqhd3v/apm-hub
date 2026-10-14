@@ -14,6 +14,18 @@ export interface OneEnv extends PlanLayout {
 	SHEET_NAME: string;
 	/** From the `SHARED_SPREADSHEET_ID` secret */
 	SHARED_SPREADSHEET_ID: string;
+	/** Jira site of the worklog report. From the `JIRA_BASE_URL` secret */
+	JIRA_BASE_URL: string;
+	/** Project whose worklogs are summarised. From the `JIRA_PROJECT_KEY` secret */
+	JIRA_PROJECT_KEY: string;
+	/** Atlassian account Jira is read as. From the `JIRA_EMAIL` secret */
+	JIRA_EMAIL: string;
+	/** API token of that account. From the `JIRA_API_TOKEN` secret */
+	JIRA_API_TOKEN: string;
+	/** Incoming webhook of the team space. From the `WORKLOG_WEBHOOK_URL` secret */
+	WORKLOG_WEBHOOK_URL: string;
+	/** Incoming webhook of the test space, used in dev mode. From the `WORKLOG_DEV_WEBHOOK_URL` secret */
+	WORKLOG_DEV_WEBHOOK_URL: string;
 }
 
 /** Injected by the build. */

@@ -1,5 +1,5 @@
+import type { Reaction } from "../../shared/chat-types";
 import { replyInThread } from "../chat/send";
-import type { Reaction } from "../chat/types";
 import { getSettings } from "../settings";
 import { getLastMessageConfig, setLastMessageReactSeen } from "./last-message";
 

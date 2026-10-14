@@ -5,6 +5,7 @@ export interface Icon {
 }
 
 export interface DecoratedText {
+	topLabel?: string;
 	text: string;
 	bottomLabel?: string;
 	wrapText?: boolean;
@@ -15,12 +16,14 @@ export interface Button {
 	text: string;
 	icon?: Icon;
 	color?: { red: number; green: number; blue: number; alpha: number };
-	onClick: {
-		action: {
-			function: string;
-			parameters: { key: string; value: string }[];
-		};
-	};
+	onClick:
+		| {
+				action: {
+					function: string;
+					parameters: { key: string; value: string }[];
+				};
+		  }
+		| { openLink: { url: string } };
 }
 
 export type Widget =

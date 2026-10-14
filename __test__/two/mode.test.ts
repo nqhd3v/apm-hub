@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
+import { isDevMode } from "../../src/shared/daily-data";
 import { spaceOf } from "../../src/two/chat/send";
-import { isDevMode } from "../../src/two/shared-sheet";
 
 test("only an explicit DEV flag switches to the test space", () => {
 	expect(isDevMode("DEV")).toBe(true);
