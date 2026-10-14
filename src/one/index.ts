@@ -24,7 +24,7 @@ import { getLastWorkday, summarizeWorklogs, todayAt } from "./worklogs/summary";
 type Entrypoint = keyof typeof import("./index");
 
 /** Exact time of the worklog report, Asia/Ho_Chi_Minh */
-const WORKLOG_REPORT = { hour: 8, minute: 50 } as const;
+const WORKLOG_REPORT = { hour: 9, minute: 5 } as const;
 
 /** Runs daily: publishes tomorrow's day-off states to the shared sheet. */
 export function leaveStateDaily(): void {
@@ -44,15 +44,15 @@ export function leaveStateDaily(): void {
 
 /**
  * Runs Monday to Friday around 07:00: creates today's one-time trigger of
- * `worklogsDaily` at exactly 08:50, which a recurring trigger cannot do (it
- * fires within ±15 min).
+ * `worklogsDaily` at exactly `WORKLOG_REPORT` (09:05), which a recurring
+ * trigger cannot do (it fires within ±15 min).
  */
 export function scheduleWorklogs(): void {
 	// leftovers of a day the report did not run
 	deleteTriggersOf("worklogsDaily" satisfies Entrypoint);
 	const at = todayAt(WORKLOG_REPORT.hour, WORKLOG_REPORT.minute);
 	if (at <= Date.now()) {
-		Logger.log("08:50 has passed, no worklog report scheduled today");
+		Logger.log("Report time has passed, no worklog report scheduled today");
 		return;
 	}
 
