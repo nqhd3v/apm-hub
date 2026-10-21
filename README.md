@@ -90,8 +90,7 @@ Repository settings, Secrets and variables, Actions:
 | `JIRA_PROJECT_KEY`        | Project whose worklogs are reported                                         |
 | `JIRA_EMAIL`              | Atlassian account Jira is read as. It must be able to browse the project    |
 | `JIRA_API_TOKEN`          | API token of that account, see [Worklog report](#worklog-report)            |
-| `WORKLOG_WEBHOOK_URL`     | Incoming webhook of the team space, see [Worklog report](#worklog-report)   |
-| `WORKLOG_DEV_WEBHOOK_URL` | Incoming webhook of the test space, used in dev mode                        |
+| `WORKLOG_DEV_WEBHOOK_URL` | Incoming webhook of the test space: cards in dev mode, report problems      |
 
 The second `clasp login` overwrites `~/.clasprc.json`, so save the first one before logging in again.
 
@@ -133,17 +132,21 @@ Edited by hand or with the [Chat commands](#chat-commands), and read by the `two
 | `B3`   | ID of the team space, without the `spaces/` prefix                                                                                                      |
 | `C3`   | ID of the test space, used in dev mode                                                                                                                  |
 | `D3`   | Manager as `users/{id}`, addressed directly by the reaction check. Optional                                                                             |
-| `E3`   | Team of the [worklog report](#worklog-report), read by `one`: exact Jira team name such as `AM`. Empty for every team. Optional                         |
+| `E3`   | Team of the [worklog report](#worklog-report), read by `one`: exact Jira team name such as `AM`. Empty for every team of `G3:H`. Optional               |
+| `G3:H` | One team of the [worklog report](#worklog-report) per row: Jira team name (`teamKey`), encrypted webhook of its space (`webhook`)                      |
 | `A8:E` | One member per row: email on the `one` account, Google Chat user ID, name shown on the card, email on the `two` account (optional), `Inactive` checkbox |
 
 A person on leave who has no row here, or whose row is ticked `Inactive`, is left out of the card. Keep the Chat user ID column formatted as plain text, otherwise Sheets rounds the long number.
 
 ## Worklog report
 
-`worklogsDaily` of account `one` runs at 09:05, Monday to Friday. A recurring Apps Script trigger fires anywhere within ±15 minutes of its time, so the exact time takes two steps: five weekly triggers (Monday to Friday) run `scheduleWorklogs` around 07:00, which creates a one-time trigger at exactly 09:05 that day; `worklogsDaily` deletes that trigger when it runs, so they do not pile up toward the limit of 20 triggers per project. Run by hand from the editor, `worklogsDaily` posts right away and leaves the scheduled one in place. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card through a Chat incoming webhook. From the shared sheet it only reads two cells:
+`worklogsDaily` of account `one` runs at 09:05, Monday to Friday. A recurring Apps Script trigger fires anywhere within ±15 minutes of its time, so the exact time takes two steps: five weekly triggers (Monday to Friday) run `scheduleWorklogs` around 07:00, which creates a one-time trigger at exactly 09:05 that day; `worklogsDaily` deletes that trigger when it runs, so they do not pile up toward the limit of 20 triggers per project. Run by hand from the editor, `worklogsDaily` posts right away and leaves the scheduled one in place. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card per team through the Chat incoming webhook of that team's space. Jira is searched once for every team. From the shared sheet it reads:
 
-- `config!E3`, the team: when set, only issues whose Team field is named exactly that value (case and spaces inside count) are reported, like `"Team[Team]" = AM` in Jira. When empty, every issue of the project is;
-- `daily_data!E9`, the mode flag: while it is `DEV`, the card goes to `WORKLOG_DEV_WEBHOOK_URL`.
+- `config!G3:H`, the teams: `teamKey`, the exact name of the Team field in Jira (case and spaces inside count, like `"Team[Team]" = AM` in Jira), and `webhook`, the encrypted webhook URL of the team space. Reading stops at the first row with both cells empty; a row with one empty cell is skipped. Issues of a team that is not listed are not reported;
+- `config!E3`, the filter: when set, only the team of that name is reported. When empty, every team of `G3:H` is;
+- `daily_data!E9`, the mode flag: while it is `DEV`, every card goes to `WORKLOG_DEV_WEBHOOK_URL`.
+
+A team that fails does not stop the others. When anything went wrong (a skipped row, a filter without row, a webhook that does not decrypt, a Jira or Chat error), one message listing the problems goes to `WORKLOG_DEV_WEBHOOK_URL`. Nothing is sent there when every team got its card, nor when no team is listed.
 
 The card:
 
@@ -156,10 +159,12 @@ The card:
 Setup:
 
 1. Create an API token at <https://id.atlassian.com/manage-profile/security/api-tokens> on the account of `JIRA_EMAIL`. That account must be able to browse the project.
-2. In the team space and in the test space: space name, Apps & integrations, Webhooks, add a webhook. Its URL goes to `WORKLOG_WEBHOOK_URL` and `WORKLOG_DEV_WEBHOOK_URL`.
-3. Save the [GitHub secrets](#4-github-secrets), deploy, then run `setupTriggers` in the `one` editor and accept the new authorisation prompt (calls to external URLs).
+2. In the test space: space name, Apps & integrations, Webhooks, add a webhook. Its URL goes to `WORKLOG_DEV_WEBHOOK_URL`.
+3. Create a secret with `openssl rand -base64 32`. Save it as the Script Property `WORKLOG_WEBHOOK_SECRET` of the `one` project (editor, Project Settings), and as `WORKLOG_WEBHOOK_SECRET` in your local `.env`.
+4. For each team: add a webhook to its space the same way, run `npm run encrypt-webhook -- <teamKey>`, paste the URL at the prompt, and put the printed `v1.…` token in column `H` next to the team name in `G`. A token only opens with the same secret, on the row of the team it was made for. Changing the secret means encrypting every webhook again.
+5. Save the [GitHub secrets](#4-github-secrets), deploy, then run `setupTriggers` in the `one` editor and accept the new authorisation prompt (calls to external URLs).
 
-The build writes the token and the webhook URLs into the `Code.js` of `one`, so anyone who can open that Apps Script project can read them: keep it unshared, and give the Jira account read access only. Public holidays are not known to the script: the day after a holiday reports the holiday itself.
+The build writes the Jira token and the test webhook URL into the `Code.js` of `one`, so anyone who can open that Apps Script project can read them, and its Script Properties: keep it unshared, and give the Jira account read access only. People who can only read the shared sheet see the team webhooks encrypted. Never paste a plain webhook URL in the sheet: its version history keeps it. Public holidays are not known to the script: the day after a holiday reports the holiday itself.
 
 ## Chat commands
 
@@ -184,7 +189,8 @@ Each command must be registered once for the Chat app in the Google Cloud consol
 | Layout of the plan sheet                   | `env/one.json`                                              | Merging to `develop`                            |
 | Spreadsheet and script IDs, `clasp` logins | GitHub Actions secrets                                      | Updating the secret, then re-running the deploy |
 | Key of the Chat service account            | Script Property `CHAT_SERVICE_ACCOUNT` of the `two` project | Apps Script editor, Project Settings            |
-| Jira login, worklog webhooks               | GitHub Actions secrets `JIRA_*`, `WORKLOG_*`, built into `one` | Updating the secret, then re-running the deploy |
+| Jira login, test webhook                   | GitHub Actions secrets `JIRA_*`, `WORKLOG_DEV_WEBHOOK_URL`, built into `one` | Updating the secret, then re-running the deploy |
+| Team webhooks                              | `config!G3:H` encrypted, secret in Script Property `WORKLOG_WEBHOOK_SECRET` of `one` | `npm run encrypt-webhook`, editing the sheet |
 
 ### `env/one.json`
 
@@ -206,7 +212,7 @@ Tab name and layout of the plan sheet, typed by `OneEnv` in `src/one/config.ts`.
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `CALENDAR_SPREADSHEET_ID`        | Plan sheet, injected into the bundle of `one`                                                        |
 | `SHARED_SPREADSHEET_ID`          | Shared sheet, injected into the bundle of both accounts                                              |
-| `JIRA_*`, `WORKLOG_WEBHOOK_URL`, `WORKLOG_DEV_WEBHOOK_URL` | Worklog report, injected into the bundle of `one` |
+| `JIRA_*`, `WORKLOG_DEV_WEBHOOK_URL` | Worklog report, injected into the bundle of `one` |
 | `ONE_SCRIPT_ID`, `TWO_SCRIPT_ID` | Apps Script project each account is pushed to (`dist/<account>/.clasp.json`). Not part of the bundle |
 
 In CI they are GitHub Actions secrets. To build locally, copy `.env.example` to `.env` and fill it in; `.env` is ignored by git.

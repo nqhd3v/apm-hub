@@ -22,9 +22,10 @@ export interface OneEnv extends PlanLayout {
 	JIRA_EMAIL: string;
 	/** API token of that account. From the `JIRA_API_TOKEN` secret */
 	JIRA_API_TOKEN: string;
-	/** Incoming webhook of the team space. From the `WORKLOG_WEBHOOK_URL` secret */
-	WORKLOG_WEBHOOK_URL: string;
-	/** Incoming webhook of the test space, used in dev mode. From the `WORKLOG_DEV_WEBHOOK_URL` secret */
+	/**
+	 * Incoming webhook of the test space: every card in dev mode, and the
+	 * problems of the worklog report. From the `WORKLOG_DEV_WEBHOOK_URL` secret
+	 */
 	WORKLOG_DEV_WEBHOOK_URL: string;
 }
 
@@ -32,3 +33,9 @@ export interface OneEnv extends PlanLayout {
 declare const __ENV__: OneEnv;
 
 export const CONFIG: OneEnv = __ENV__;
+
+/** Script properties of the `one` project */
+export const PROPERTY = {
+	/** Secret of the team webhooks in `config!H`, see `worklogs/cipher.ts` */
+	WORKLOG_WEBHOOK_SECRET: "WORKLOG_WEBHOOK_SECRET",
+} as const;

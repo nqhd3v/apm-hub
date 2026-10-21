@@ -8,8 +8,11 @@ export const CONFIG_DATA = {
 	TWO_SPACE_COL: 2,
 	DEV_SPACE_COL: 3,
 	MANAGER_COL: 4,
-	/** Team of the worklog report, read by account `one`: empty for every team, else the exact team name */
+	/** Team of the worklog report, read by account `one`: empty for every team of the table below, else the exact team name */
 	WORKLOG_TEAM_CELL: "E3",
+	/** From row 3, under its header row: `teamKey | webhook`, the Jira team name and the encrypted webhook of its space */
+	WORKLOG_TEAMS_RANGE: "G3:H",
+	WORKLOG_TEAMS_FIRST_ROW: 3,
 	/** From row 8, under its header row: `one email | chat id | name | two email | inactive` */
 	MEMBERS_RANGE: "A8:E",
 	MEMBERS_FIRST_ROW: 8,

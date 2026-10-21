@@ -4,6 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "node build.mjs",
+		"encrypt-webhook": "node scripts/encrypt-webhook.mjs",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome ci .",
 		"format": "biome check --write .",

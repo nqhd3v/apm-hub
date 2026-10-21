@@ -1,6 +1,6 @@
 import { CONFIG_DATA } from "../../shared/config-data";
 import { DAILY_DATA, isDevMode } from "../../shared/daily-data";
-import { CONFIG } from "../config";
+import { CONFIG, PROPERTY } from "../config";
 
 function getSharedSheet(tab: string): GoogleAppsScript.Spreadsheet.Sheet {
 	const sheet = SpreadsheetApp.openById(
@@ -21,7 +21,7 @@ export function readDevMode(): boolean {
 	return isDevMode(flag);
 }
 
-/** Team name of `config!E3`, or "" for every team. */
+/** Team name of `config!E3`, or "" for every team of the table. */
 export function readWorklogTeam(): string {
 	const team = String(
 		getSharedSheet(CONFIG_DATA.TAB)
@@ -31,4 +31,25 @@ export function readWorklogTeam(): string {
 	Logger.log(`Worklog team: "${team}"`);
 
 	return team;
+}
+
+/** Cells of the team table, `config!G3:H` */
+export function readTeamRows(): unknown[][] {
+	return getSharedSheet(CONFIG_DATA.TAB)
+		.getRange(CONFIG_DATA.WORKLOG_TEAMS_RANGE)
+		.getValues();
+}
+
+/** Secret of the team webhooks. Throws when the script property is not set. */
+export function readWebhookSecret(): string {
+	const secret = PropertiesService.getScriptProperties().getProperty(
+		PROPERTY.WORKLOG_WEBHOOK_SECRET,
+	);
+	if (!secret) {
+		throw new Error(
+			`${PROPERTY.WORKLOG_WEBHOOK_SECRET} script property is not set.`,
+		);
+	}
+
+	return secret;
 }

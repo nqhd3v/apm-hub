@@ -10,16 +10,10 @@ import {
 import { CONFIG } from "./config";
 import { pickLeaveRows, readPlanRows } from "./leave-state/plan";
 import { updateSharedSheet } from "./leave-state/publish";
-import { createWorklogCard } from "./worklogs/cards";
-import {
-	fetchWorkingDaySeconds,
-	fetchWorklogs,
-	jiraBaseUrl,
-	worklogSearchUrl,
-} from "./worklogs/jira";
+import { createProblemsMessage } from "./worklogs/cards";
+import { reportWorklogs } from "./worklogs/report";
 import { sendToWebhook } from "./worklogs/send";
-import { readDevMode, readWorklogTeam } from "./worklogs/settings";
-import { getLastWorkday, summarizeWorklogs, todayAt } from "./worklogs/summary";
+import { getLastWorkday, todayAt } from "./worklogs/summary";
 
 type Entrypoint = keyof typeof import("./index");
 
@@ -61,7 +55,8 @@ export function scheduleWorklogs(): void {
 }
 
 /**
- * Posts the Jira worklogs of the last workday, per member, to the team space.
+ * Posts the Jira worklogs of the last workday, per member, to the space of
+ * each team, and what went wrong, if anything, to the test space.
  * Called by the one-time trigger of `scheduleWorklogs`, which it deletes, or
  * by hand from the editor.
  */
@@ -70,21 +65,18 @@ export function worklogsDaily(e?: GoogleAppsScript.Events.TimeDriven): void {
 	if (e?.triggerUid) deleteTrigger(e.triggerUid);
 
 	const day = getLastWorkday();
-	const team = readWorklogTeam();
-	const { issues, teamId } = fetchWorklogs(day, team);
-	const members = summarizeWorklogs(issues, day);
-	Logger.log(`Worklogs of ${day.iso}: ${JSON.stringify(members)}`);
+	let problems: string[];
+	try {
+		problems = reportWorklogs(day);
+	} catch (error) {
+		problems = [error instanceof Error ? error.message : String(error)];
+	}
+	if (!problems.length) return;
 
-	const dev = readDevMode();
+	Logger.log(`Worklog report problems: ${JSON.stringify(problems)}`);
 	sendToWebhook(
-		createWorklogCard(members, {
-			date: day.label,
-			jiraUrl: jiraBaseUrl(),
-			searchUrl: worklogSearchUrl(day, teamId),
-			daySeconds: fetchWorkingDaySeconds(),
-			team,
-		}),
-		dev ? CONFIG.WORKLOG_DEV_WEBHOOK_URL : CONFIG.WORKLOG_WEBHOOK_URL,
+		createProblemsMessage(day.label, problems),
+		CONFIG.WORKLOG_DEV_WEBHOOK_URL,
 	);
 }
 

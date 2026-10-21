@@ -5,7 +5,7 @@ import {
 	type Workday,
 	workingDaySeconds,
 } from "./summary";
-import { findTeamField, type JiraField, teamOf } from "./team";
+import { findTeamField, groupByTeam, type JiraField, teamOf } from "./team";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Worklog requests sent at once, to stay under Jira's rate limit */
@@ -122,44 +122,51 @@ function getTeamFieldId(auth: string): string {
 
 export interface FetchedWorklogs {
 	issues: IssueWorklogs[];
-	/** Id of the team named `team`, when one of the issues belongs to it */
+	/** Id of the team, when one of the issues belongs to it */
 	teamId?: string;
 }
 
 /**
- * Issues of the project with their worklogs started around `day`.
- * When `team` is set, only issues whose Team is named exactly `team`.
+ * Issues of the project with their worklogs started around `day`, grouped by
+ * the name of their Team, for the names of `teams` only (exact match).
+ * Searches Jira once for every team.
  */
-export function fetchWorklogs(day: Workday, team = ""): FetchedWorklogs {
+export function fetchWorklogs(
+	day: Workday,
+	teams: string[],
+): Map<string, FetchedWorklogs> {
 	const auth = authHeader();
-	const teamField = team ? getTeamFieldId(auth) : "";
+	const teamField = getTeamFieldId(auth);
 	// `worklogDate` uses the timezone of the Jira account, so widen by a day
 	// on each side; `summarizeWorklogs` keeps the exact day.
 	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate >= "${isoShift(day.iso, -1)}" AND worklogDate <= "${isoShift(day.iso, 1)}"`;
-	const found = searchIssues(
-		jql,
-		teamField ? ["summary", teamField] : ["summary"],
-		auth,
-	);
+	const found = searchIssues(jql, ["summary", teamField], auth);
 	Logger.log(`Jira: ${found.length} issue(s) for ${jql}`);
+	const names = new Set(found.map((i) => teamOf(i.fields[teamField])?.name));
+	Logger.log(`Teams seen: ${JSON.stringify([...names])}`);
 
-	let teamId: string | undefined;
-	const issues = found
-		.filter((issue) => {
-			if (!team) return true;
-			const issueTeam = teamOf(issue.fields[teamField]);
-			if (issueTeam?.name !== team) return false;
-			teamId = issueTeam.id;
-			return true;
-		})
-		.map((issue) => ({ key: issue.key, summary: issue.fields.summary ?? "" }));
-	if (team) {
-		const names = new Set(found.map((i) => teamOf(i.fields[teamField])?.name));
-		Logger.log(
-			`Team "${team}": ${issues.length} issue(s). Teams seen: ${JSON.stringify([...names])}`,
-		);
+	const result = new Map<string, FetchedWorklogs>();
+	for (const [team, group] of groupByTeam(found, teamField, teams)) {
+		Logger.log(`Team "${team}": ${group.issues.length} issue(s)`);
+		result.set(team, {
+			issues: fetchIssueWorklogs(group.issues, day, auth),
+			teamId: group.teamId,
+		});
 	}
 
+	return result;
+}
+
+/** Worklogs of `found` started around `day`. */
+function fetchIssueWorklogs(
+	found: SearchIssue[],
+	day: Workday,
+	auth: string,
+): IssueWorklogs[] {
+	const issues = found.map((issue) => ({
+		key: issue.key,
+		summary: issue.fields.summary ?? "",
+	}));
 	const result: IssueWorklogs[] = [];
 	for (let i = 0; i < issues.length; i += PARALLEL) {
 		const chunk = issues.slice(i, i + PARALLEL);
@@ -182,7 +189,7 @@ export function fetchWorklogs(day: Workday, team = ""): FetchedWorklogs {
 		});
 	}
 
-	return { issues: result, teamId };
+	return result;
 }
 
 /** `YYYY-MM-DD` moved by `days` */

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { createWorklogCard } from "../../../src/one/worklogs/cards";
+import {
+	createProblemsMessage,
+	createWorklogCard,
+} from "../../../src/one/worklogs/cards";
 
 const options = {
 	date: "13/10/2026",
@@ -92,5 +95,13 @@ describe("createWorklogCard", () => {
 		expect(card?.header?.title).toBe("Worklogs in last workday");
 		expect(card?.sections[0]?.header).toBe("0 members · 0h logged");
 		expect(JSON.stringify(card)).toContain("No worklog was logged");
+	});
+});
+
+test("createProblemsMessage lists the problems", () => {
+	expect(
+		createProblemsMessage("20/10/2026", ["Row 4: x.", 'Team "AM": y']),
+	).toEqual({
+		text: '*Worklog report of 20/10/2026: 2 problems*\n• Row 4: x.\n• Team "AM": y',
 	});
 });

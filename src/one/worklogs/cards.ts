@@ -120,3 +120,13 @@ export function createWorklogCard(
 		],
 	};
 }
+
+/** Report to the dev space of what went wrong in the worklog report of `date`. */
+export function createProblemsMessage(
+	date: string,
+	problems: string[],
+): ChatMessage {
+	return {
+		text: `*Worklog report of ${date}: ${plural(problems.length, "problem")}*\n${problems.map((p) => `• ${p}`).join("\n")}`,
+	};
+}
