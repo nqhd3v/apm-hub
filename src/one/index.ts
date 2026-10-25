@@ -18,7 +18,7 @@ import { getLastWorkday, todayAt } from "./worklogs/summary";
 type Entrypoint = keyof typeof import("./index");
 
 /** Exact time of the worklog report, Asia/Ho_Chi_Minh */
-const WORKLOG_REPORT = { hour: 9, minute: 5 } as const;
+const WORKLOG_REPORT = { hour: 9, minute: 15 } as const;
 
 /** Runs daily: publishes tomorrow's day-off states to the shared sheet. */
 export function leaveStateDaily(): void {
@@ -38,7 +38,7 @@ export function leaveStateDaily(): void {
 
 /**
  * Runs Monday to Friday around 07:00: creates today's one-time trigger of
- * `worklogsDaily` at exactly `WORKLOG_REPORT` (09:05), which a recurring
+ * `worklogsDaily` at exactly `WORKLOG_REPORT` (09:15), which a recurring
  * trigger cannot do (it fires within ±15 min).
  */
 export function scheduleWorklogs(): void {

@@ -17,8 +17,8 @@ plan sheet ──► leaveStateDaily ──► date + email/state/session ──
 | Account | Entrypoint               | Runs          | What it does                                                                                 |
 | ------- | ------------------------ | ------------- | -------------------------------------------------------------------------------------------- |
 | one     | `leaveStateDaily`        | daily 13:30   | Reads tomorrow's column of the day-off plan sheet and writes who is off to the shared sheet. |
-| one     | `scheduleWorklogs`       | Mon–Fri ~07:00 | Creates a one-time trigger of `worklogsDaily` at exactly 09:05 today.                        |
-| one     | `worklogsDaily`          | Mon–Fri 09:05 | Posts the Jira worklogs of the last workday, per member, to the team space. See [Worklog report](#worklog-report). |
+| one     | `scheduleWorklogs`       | Mon–Fri ~07:00 | Creates a one-time trigger of `worklogsDaily` at exactly 09:15 today.                        |
+| one     | `worklogsDaily`          | Mon–Fri 09:15 | Posts the Jira worklogs of the last workday, per member, to the team space. See [Worklog report](#worklog-report). |
 | two     | `leaveNotiDaily`         | daily 16:30   | Reads the shared sheet and posts the leave reminder card to the team space.                  |
 | two     | `handleHalfDaySelection` | button click  | Records Morning / Afternoon for a half-day leave and updates the card.                       |
 | two     | `checkReactions`         | every 15 min  | Replies once to each negative reaction on the last leave card.                               |
@@ -140,7 +140,7 @@ A person on leave who has no row here, or whose row is ticked `Inactive`, is lef
 
 ## Worklog report
 
-`worklogsDaily` of account `one` runs at 09:05, Monday to Friday. A recurring Apps Script trigger fires anywhere within ±15 minutes of its time, so the exact time takes two steps: five weekly triggers (Monday to Friday) run `scheduleWorklogs` around 07:00, which creates a one-time trigger at exactly 09:05 that day; `worklogsDaily` deletes that trigger when it runs, so they do not pile up toward the limit of 20 triggers per project. Run by hand from the editor, `worklogsDaily` posts right away and leaves the scheduled one in place. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card per team through the Chat incoming webhook of that team's space. Jira is searched once for every team. From the shared sheet it reads:
+`worklogsDaily` of account `one` runs at 09:15, Monday to Friday. A recurring Apps Script trigger fires anywhere within ±15 minutes of its time, so the exact time takes two steps: five weekly triggers (Monday to Friday) run `scheduleWorklogs` around 07:00, which creates a one-time trigger at exactly 09:15 that day; `worklogsDaily` deletes that trigger when it runs, so they do not pile up toward the limit of 20 triggers per project. Run by hand from the editor, `worklogsDaily` posts right away and leaves the scheduled one in place. It reads the Jira worklogs of the last workday (yesterday, or Friday on Monday) on the issues of `JIRA_PROJECT_KEY` with the Jira REST API, and posts one card per team through the Chat incoming webhook of that team's space. Jira is searched once for every team. From the shared sheet it reads:
 
 - `config!G3:H`, the teams: `teamKey`, the exact name of the Team field in Jira (case and spaces inside count, like `"Team[Team]" = AM` in Jira), and `webhook`, the encrypted webhook URL of the team space. Reading stops at the first row with both cells empty; a row with one empty cell is skipped. Issues of a team that is not listed are not reported;
 - `config!E3`, the filter: when set, only the team of that name is reported. When empty, every team of `G3:H` is;
