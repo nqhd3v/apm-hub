@@ -54,6 +54,30 @@ describe("createWorklogCard", () => {
 		expect(JSON.stringify(section)).toContain("https://jira/search");
 	});
 
+	test("adds weekend time after the total", () => {
+		const message = createWorklogCard(
+			[
+				{
+					accountId: "a",
+					name: "A",
+					seconds: 6.75 * 3600,
+					issues: [{ key: "APM-1", summary: "", seconds: 6.75 * 3600 }],
+					extra: [
+						{ name: "Sat", seconds: 3600 },
+						{ name: "Sun", seconds: 7200 },
+					],
+				},
+			],
+			options,
+		);
+
+		expect(message.cardsV2?.[0]?.card.sections[0]?.widgets[0]).toMatchObject({
+			decoratedText: {
+				text: '<b>A</b> <font color="#188038"><b>6h 45m</b></font> (<font color="#1a73e8"><b>+1h</b></font> in Sat, <font color="#1a73e8"><b>+2h</b></font> in Sun)<br><a href="https://jira/browse/APM-1">APM-1</a>',
+			},
+		});
+	});
+
 	test("warns under 2/3 of the working day of Jira", () => {
 		const iconOf = (seconds: number, daySeconds: number) =>
 			JSON.stringify(

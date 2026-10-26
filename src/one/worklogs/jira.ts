@@ -1,5 +1,6 @@
 import { CONFIG } from "../config";
 import {
+	daySpan,
 	type IssueWorklogs,
 	type JiraWorklog,
 	type Workday,
@@ -49,15 +50,17 @@ function parse<T>(
 }
 
 /**
- * Issue search link of the project's worklogs on `day`, for people to check
- * the report in Jira. Limited to `teamId` when given.
+ * Issue search link of the project's worklogs on `day` and its extra days,
+ * for people to check the report in Jira. Limited to `teamId` when given.
  */
-export function worklogSearchUrl(
-	day: Pick<Workday, "iso">,
-	teamId?: string,
-): string {
+export function worklogSearchUrl(day: Workday, teamId?: string): string {
 	const team = teamId ? ` AND "Team[Team]" = "${teamId}"` : "";
-	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate = "${day.iso}"${team}`;
+	const { firstIso, lastIso } = daySpan(day);
+	const date =
+		firstIso === lastIso
+			? `worklogDate = "${firstIso}"`
+			: `worklogDate >= "${firstIso}" AND worklogDate <= "${lastIso}"`;
+	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND ${date}${team}`;
 	return `${jiraBaseUrl()}/issues/?jql=${encodeURIComponent(jql)}`;
 }
 
@@ -127,7 +130,8 @@ export interface FetchedWorklogs {
 }
 
 /**
- * Issues of the project with their worklogs started around `day`, grouped by
+ * Issues of the project with their worklogs started around `day` and its
+ * extra days, grouped by
  * the name of their Team, for the names of `teams` only (exact match).
  * Searches Jira once for every team.
  */
@@ -139,7 +143,8 @@ export function fetchWorklogs(
 	const teamField = getTeamFieldId(auth);
 	// `worklogDate` uses the timezone of the Jira account, so widen by a day
 	// on each side; `summarizeWorklogs` keeps the exact day.
-	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate >= "${isoShift(day.iso, -1)}" AND worklogDate <= "${isoShift(day.iso, 1)}"`;
+	const span = daySpan(day);
+	const jql = `project = "${CONFIG.JIRA_PROJECT_KEY}" AND worklogDate >= "${isoShift(span.firstIso, -1)}" AND worklogDate <= "${isoShift(span.lastIso, 1)}"`;
 	const found = searchIssues(jql, ["summary", teamField], auth);
 	Logger.log(`Jira: ${found.length} issue(s) for ${jql}`);
 	const names = new Set(found.map((i) => teamOf(i.fields[teamField])?.name));
@@ -157,12 +162,13 @@ export function fetchWorklogs(
 	return result;
 }
 
-/** Worklogs of `found` started around `day`. */
+/** Worklogs of `found` started around `day` and its extra days. */
 function fetchIssueWorklogs(
 	found: SearchIssue[],
 	day: Workday,
 	auth: string,
 ): IssueWorklogs[] {
+	const span = daySpan(day);
 	const issues = found.map((issue) => ({
 		key: issue.key,
 		summary: issue.fields.summary ?? "",
@@ -172,7 +178,7 @@ function fetchIssueWorklogs(
 		const chunk = issues.slice(i, i + PARALLEL);
 		const requests = chunk.map((issue) =>
 			request(
-				`/rest/api/3/issue/${issue.key}/worklog?startedAfter=${day.start - DAY_MS}&startedBefore=${day.end + DAY_MS}&maxResults=5000`,
+				`/rest/api/3/issue/${issue.key}/worklog?startedAfter=${span.start - DAY_MS}&startedBefore=${span.end + DAY_MS}&maxResults=5000`,
 				auth,
 			),
 		);

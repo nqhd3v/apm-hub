@@ -7,6 +7,8 @@ import {
 
 const GREEN = "#188038";
 const ORANGE = "#e37400";
+/** Overtime on the weekend */
+const BLUE = "#1a73e8";
 /**
  * Share of the working day under which a member gets the warning. Below a
  * full day on purpose: early in a sprint people work more than they log.
@@ -28,7 +30,7 @@ function plural(count: number, word: string): string {
 	return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
-/** `Name 13h 30m`, then the keys of the issues worked on, most time first. */
+/** `Name 13h 30m (+2h in Sat)`, then the keys of the issues worked on, most time first. */
 function memberWidget(
 	member: MemberWorklogs,
 	jiraUrl: string,
@@ -36,13 +38,16 @@ function memberWidget(
 ): Widget {
 	const full = member.seconds >= daySeconds * WARNING_RATIO;
 	const total = `<font color="${full ? GREEN : ORANGE}"><b>${formatDuration(member.seconds)}</b></font>`;
+	const extra = member.extra?.length
+		? ` (${member.extra.map((t) => `<font color="${BLUE}"><b>+${formatDuration(t.seconds)}</b></font> in ${t.name}`).join(", ")})`
+		: "";
 	const issues = member.issues
 		.map((i) => `<a href="${jiraUrl}/browse/${i.key}">${i.key}</a>`)
 		.join(" · ");
 
 	return {
 		decoratedText: {
-			text: `<b>${escapeHtml(member.name)}</b> ${total}<br>${issues}`,
+			text: `<b>${escapeHtml(member.name)}</b> ${total}${extra}<br>${issues}`,
 			wrapText: true,
 			icon: icon(full ? "check_circle" : "schedule", full),
 		},

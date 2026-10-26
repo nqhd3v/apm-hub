@@ -21,8 +21,29 @@ describe("getLastWorkday", () => {
 		expect(day.end).toBe(local(14, 0));
 	});
 
-	test("is Friday on Monday", () => {
-		expect(getLastWorkday(local(12)).label).toBe("09/10/2026");
+	test("is Friday on Monday, with the weekend as extra days", () => {
+		const day = getLastWorkday(local(12));
+		expect(day.label).toBe("09/10/2026");
+		expect(day.extraDays).toEqual([
+			{
+				start: local(10, 0),
+				end: local(11, 0),
+				name: "Sat",
+				iso: "2026-10-10",
+			},
+			{
+				start: local(11, 0),
+				end: local(12, 0),
+				name: "Sun",
+				iso: "2026-10-11",
+			},
+		]);
+	});
+
+	test("has no extra days on other days", () => {
+		expect(getLastWorkday(local(14)).extraDays).toEqual([]);
+		// Sunday
+		expect(getLastWorkday(local(11)).extraDays).toEqual([]);
 	});
 
 	test("uses the local date just after midnight", () => {
@@ -94,6 +115,57 @@ describe("summarizeWorklogs", () => {
 			},
 		]);
 	});
+});
+
+test("summarizeWorklogs adds weekend time on Monday, keeps Friday issues", () => {
+	const a = { accountId: "a", displayName: "Person A" };
+	const c = { accountId: "c", displayName: "Person C" };
+	const log = (author: typeof a, started: string, seconds: number) => ({
+		author,
+		started,
+		timeSpentSeconds: seconds,
+	});
+	const issues: IssueWorklogs[] = [
+		{
+			key: "APM-1",
+			summary: "Login",
+			worklogs: [
+				log(a, "2026-10-09T09:00:00.000+0700", 3600),
+				log(a, "2026-10-11T09:00:00.000+0700", 7200),
+				log(a, "2026-10-10T09:00:00.000+0700", 1800),
+				// Monday itself is left out
+				log(a, "2026-10-12T09:00:00.000+0700", 3600),
+			],
+		},
+		{
+			key: "APM-9",
+			summary: "Weekend only",
+			worklogs: [
+				log(a, "2026-10-10T10:00:00.000+0700", 1800),
+				log(c, "2026-10-11T10:00:00.000+0700", 3600),
+			],
+		},
+	];
+
+	expect(summarizeWorklogs(issues, getLastWorkday(local(12)))).toEqual([
+		{
+			accountId: "a",
+			name: "Person A",
+			seconds: 3600,
+			issues: [{ key: "APM-1", summary: "Login", seconds: 3600 }],
+			extra: [
+				{ name: "Sat", seconds: 3600 },
+				{ name: "Sun", seconds: 7200 },
+			],
+		},
+		{
+			accountId: "c",
+			name: "Person C",
+			seconds: 0,
+			issues: [],
+			extra: [{ name: "Sun", seconds: 3600 }],
+		},
+	]);
 });
 
 test("workingDaySeconds reads Jira's working day, else 8h", () => {

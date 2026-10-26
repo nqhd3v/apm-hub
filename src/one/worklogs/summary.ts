@@ -2,6 +2,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Asia/Ho_Chi_Minh is UTC+7 all year (no daylight saving) */
 const TZ_OFFSET_MS = 7 * 60 * 60 * 1000;
 
+/** Weekend day after a Friday, reported next to it for overtime. */
+export interface ExtraDay {
+	start: number;
+	end: number;
+	/** `Sat`, `Sun`, shown on the card */
+	name: string;
+	/** `YYYY-MM-DD`, used in JQL */
+	iso: string;
+}
+
 /** One day in the script timezone, as `[start, end)` epoch milliseconds. */
 export interface Workday {
 	start: number;
@@ -10,6 +20,8 @@ export interface Workday {
 	label: string;
 	/** `YYYY-MM-DD`, used in JQL */
 	iso: string;
+	/** Saturday and Sunday when run on Monday, empty otherwise */
+	extraDays: ExtraDay[];
 }
 
 /** Fields of the local date of `ms` in the script timezone. */
@@ -41,7 +53,10 @@ export function todayAt(
 	return Date.UTC(year, month, day, hour, minute) - TZ_OFFSET_MS;
 }
 
-/** Previous Monday-to-Friday day: Friday when run on Monday or during the weekend. */
+/**
+ * Previous Monday-to-Friday day: Friday when run on Monday or during the
+ * weekend. On Monday, the weekend comes along as `extraDays`.
+ */
 export function getLastWorkday(now: number = Date.now()): Workday {
 	const { year, month, day, weekday } = localParts(now);
 	// days back from today: Mon -> Fri (3), Sun -> Fri (2), others -> yesterday
@@ -49,11 +64,35 @@ export function getLastWorkday(now: number = Date.now()): Workday {
 	const start = Date.UTC(year, month, day - back) - TZ_OFFSET_MS;
 	const { year: y, month: m, day: d } = localParts(start);
 
+	const extraDays = (weekday === 1 ? ["Sat", "Sun"] : []).map((name, i) => {
+		const extraStart = start + (i + 1) * DAY_MS;
+		return {
+			start: extraStart,
+			end: extraStart + DAY_MS,
+			name,
+			iso: isoDate(extraStart),
+		};
+	});
+
 	return {
 		start,
 		end: start + DAY_MS,
 		label: `${pad(d)}/${pad(m + 1)}/${y}`,
 		iso: isoDate(start),
+		extraDays,
+	};
+}
+
+/** First and last day covered by `day`, with its extra days. */
+export function daySpan(
+	day: Pick<Workday, "start" | "end" | "iso" | "extraDays">,
+) {
+	const last = day.extraDays[day.extraDays.length - 1];
+	return {
+		start: day.start,
+		end: last?.end ?? day.end,
+		firstIso: day.iso,
+		lastIso: last?.iso ?? day.iso,
 	};
 }
 
@@ -105,12 +144,21 @@ export interface IssueTime {
 	seconds: number;
 }
 
+export interface DayTime {
+	/** Name of the extra day, e.g. `Sat` */
+	name: string;
+	seconds: number;
+}
+
 export interface MemberWorklogs {
 	accountId: string;
 	name: string;
+	/** Time of the workday only */
 	seconds: number;
-	/** Most time first */
+	/** Issues of the workday only, most time first */
 	issues: IssueTime[];
+	/** Time on the extra days that have some, in day order */
+	extra?: DayTime[];
 }
 
 /** Jira's `+0700` offset is not ISO 8601 for `Date.parse`, which wants `+07:00`. */
@@ -118,17 +166,27 @@ export function parseJiraDate(value: string): number {
 	return Date.parse(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
 }
 
-/** Worklogs started within `day`, totalled per author and issue. Most time first. */
+/**
+ * Worklogs started within `day`, totalled per author and issue. Most time
+ * first. Worklogs of its extra days only add to `extra` of their author.
+ */
 export function summarizeWorklogs(
 	issues: IssueWorklogs[],
-	day: Pick<Workday, "start" | "end">,
+	day: Pick<Workday, "start" | "end"> & { extraDays?: ExtraDay[] },
 ): MemberWorklogs[] {
 	const byMember = new Map<string, MemberWorklogs>();
+	const extraDays = day.extraDays ?? [];
+	const within = (ms: number, d: { start: number; end: number }) =>
+		ms >= d.start && ms < d.end;
 
 	for (const issue of issues) {
 		for (const log of issue.worklogs) {
 			const started = parseJiraDate(log.started);
-			if (!(started >= day.start && started < day.end)) continue;
+			const inDay = within(started, day);
+			const extraDay = inDay
+				? undefined
+				: extraDays.find((d) => within(started, d));
+			if (!inDay && !extraDay) continue;
 
 			const accountId = log.author?.accountId ?? "unknown";
 			let member = byMember.get(accountId);
@@ -142,6 +200,17 @@ export function summarizeWorklogs(
 				byMember.set(accountId, member);
 			}
 
+			if (extraDay) {
+				member.extra ??= [];
+				let time = member.extra.find((t) => t.name === extraDay.name);
+				if (!time) {
+					time = { name: extraDay.name, seconds: 0 };
+					member.extra.push(time);
+				}
+				time.seconds += log.timeSpentSeconds;
+				continue;
+			}
+
 			member.seconds += log.timeSpentSeconds;
 			let time = member.issues.find((i) => i.key === issue.key);
 			if (!time) {
@@ -153,8 +222,10 @@ export function summarizeWorklogs(
 	}
 
 	const members = [...byMember.values()];
+	const order = extraDays.map((d) => d.name);
 	for (const member of members) {
 		member.issues.sort((a, b) => b.seconds - a.seconds);
+		member.extra?.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
 	}
 
 	return members.sort(
