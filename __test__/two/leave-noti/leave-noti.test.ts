@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { Reaction } from "../../../src/shared/chat-types";
 import {
+	createDueTasksMessage,
 	createMessageLeaveCard,
 	HALF_DAY_ACTION,
 } from "../../../src/two/leave-noti/cards";
@@ -21,16 +22,16 @@ const [a, b, c] = [member("a"), member("b"), member("c")];
 const members: Members = Object.fromEntries(
 	[a, b, c].map(({ oneEmail, email }, index) => [
 		oneEmail,
-		{ id: String(index + 1), name: email, email },
+		{ id: String(index + 1), name: email },
 	]),
 );
 
 const rows: unknown[][] = [
-	[a.oneEmail, 1, -1],
-	[b.oneEmail, 0.5, 0],
-	[c.oneEmail, 0.5, 2],
-	["stranger@one.example", 0.5, 0],
-	["", "", ""],
+	[a.oneEmail, 1, -1, "APM-1, APM-2 ,"],
+	[b.oneEmail, 0.5, 0, ""],
+	[c.oneEmail, 0.5, 2, ""],
+	["stranger@one.example", 0.5, 0, ""],
+	["", "", "", ""],
 ];
 
 describe("parseLeaveRows", () => {
@@ -38,34 +39,39 @@ describe("parseLeaveRows", () => {
 		const { fullDay, halfDay } = parseLeaveRows(rows, members);
 
 		expect(fullDay).toMatchObject([
-			{ oneEmail: a.oneEmail, twoEmail: a.email, state: 1, session: -1 },
+			{
+				oneEmail: a.oneEmail,
+				state: 1,
+				session: -1,
+				dueTasks: ["APM-1", "APM-2"],
+			},
 		]);
 		expect(halfDay).toMatchObject([
-			{ oneEmail: b.oneEmail, twoEmail: b.email, session: 0 },
-			{ oneEmail: c.oneEmail, twoEmail: c.email, session: 2 },
+			{ oneEmail: b.oneEmail, session: 0, dueTasks: [] },
+			{ oneEmail: c.oneEmail, session: 2, dueTasks: [] },
 		]);
 	});
 });
 
 describe("findHalfDayRow", () => {
-	test("matches by `one` or `two` email, only on half-day rows", () => {
-		expect(findHalfDayRow(rows, b.oneEmail, members)).toBe(1);
-		expect(findHalfDayRow(rows, c.email, members)).toBe(2);
-		expect(findHalfDayRow(rows, a.email, members)).toBe(-1);
-		expect(findHalfDayRow(rows, "nobody@two.example", members)).toBe(-1);
+	test("matches by `one` email, only on half-day rows", () => {
+		expect(findHalfDayRow(rows, b.oneEmail)).toBe(1);
+		expect(findHalfDayRow(rows, c.oneEmail)).toBe(2);
+		expect(findHalfDayRow(rows, a.oneEmail)).toBe(-1);
+		expect(findHalfDayRow(rows, c.email)).toBe(-1);
 	});
 });
 
 describe("checkUserRequest", () => {
 	const { halfDay } = parseLeaveRows(rows, members);
 	const date = "10/05/26";
-	const ok = { email: b.email, session: "1", date };
+	const ok = { email: b.oneEmail, session: "1", date };
 
-	test("accepts a pending member by `two` or `one` email", () => {
+	test("accepts a pending member by `one` email, not by another email", () => {
 		expect(checkUserRequest(ok, date, halfDay)).toBeNull();
-		expect(
-			checkUserRequest({ ...ok, email: b.oneEmail }, date, halfDay),
-		).toBeNull();
+		expect(checkUserRequest({ ...ok, email: b.email }, date, halfDay)).toBe(
+			"notRegistered",
+		);
 	});
 
 	test("accepts a pending member by chat id, without an email", () => {
@@ -87,10 +93,10 @@ describe("checkUserRequest", () => {
 		expect(checkUserRequest({ ...ok, date: "10/04/26" }, date, halfDay)).toBe(
 			"invalidDate",
 		);
-		expect(checkUserRequest({ ...ok, email: a.email }, date, halfDay)).toBe(
+		expect(checkUserRequest({ ...ok, email: a.oneEmail }, date, halfDay)).toBe(
 			"notRegistered",
 		);
-		expect(checkUserRequest({ ...ok, email: c.email }, date, halfDay)).toBe(
+		expect(checkUserRequest({ ...ok, email: c.oneEmail }, date, halfDay)).toBe(
 			"alreadyConfirmed",
 		);
 	});
@@ -101,9 +107,9 @@ describe("createMessageLeaveCard", () => {
 		id: "1",
 		name: "N",
 		oneEmail: "o",
-		twoEmail: "c",
 		state,
 		session,
+		dueTasks: [],
 	});
 	const sectionsOf = (full: MemberLeave[], half: MemberLeave[]) =>
 		createMessageLeaveCard(full, half, "10/05/26")?.cardsV2?.[0]?.card
@@ -172,5 +178,38 @@ describe("findBadReactors", () => {
 		];
 
 		expect(findBadReactors(reactions, ["users/4"])).toEqual(["users/1"]);
+	});
+});
+
+describe("createDueTasksMessage", () => {
+	const leave = (id: string, dueTasks: string[]): MemberLeave => ({
+		id,
+		name: id,
+		oneEmail: "o",
+		state: 1,
+		session: -1,
+		dueTasks,
+	});
+
+	test("mentions each member with due tasks, in the card thread", () => {
+		const message = createDueTasksMessage(
+			[leave("1", ["APM-1", "APM-2"]), leave("2", []), leave("3", ["APM-3"])],
+			"spaces/S/threads/T",
+			"https://jira.example/",
+		);
+
+		expect(message?.thread).toEqual({ name: "spaces/S/threads/T" });
+		expect(message?.text?.split("\n")).toEqual([
+			"⚠️ *Sub-tasks due tomorrow, not done yet*",
+			"• <users/1>: <https://jira.example/browse/APM-1|APM-1>, <https://jira.example/browse/APM-2|APM-2>",
+			"• <users/3>: <https://jira.example/browse/APM-3|APM-3>",
+			"Please finish, hand over or update the due date before your leave.",
+		]);
+	});
+
+	test("null when nobody has due tasks", () => {
+		expect(
+			createDueTasksMessage([leave("1", [])], "t", "https://j"),
+		).toBeNull();
 	});
 });

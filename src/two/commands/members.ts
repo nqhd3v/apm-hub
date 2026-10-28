@@ -15,14 +15,10 @@ function text(value: unknown): string {
 	return String(value ?? "").trim();
 }
 
-/** True when the Chat user is an active member, matched by Chat id or by `two` account email. */
+/** True when the Chat user is an active member, matched by Chat id. */
 export function isMember(members: Members, user: Partial<ChatUser>): boolean {
-	const email = user.email?.toLowerCase();
-
 	return Object.values(members).some(
-		(member) =>
-			user.name === `users/${member.id}` ||
-			(!!email && member.email.toLowerCase() === email),
+		(member) => user.name === `users/${member.id}`,
 	);
 }
 
@@ -52,7 +48,7 @@ export interface MemberMatch {
 	inactive: boolean;
 }
 
-/** Member rows whose `one` email, `two` email or name contains `query`, ignoring case. */
+/** Member rows whose `one` email or name contains `query`, ignoring case. */
 export function searchMemberRows(
 	rows: unknown[][],
 	query: string,
@@ -65,7 +61,7 @@ export function searchMemberRows(
 		const name = text(row[2]);
 		if (!oneEmail && !text(row[1])) return [];
 
-		const found = [oneEmail, name, text(row[3])].some((value) =>
+		const found = [oneEmail, name].some((value) =>
 			value.toLowerCase().includes(needle),
 		);
 		return found

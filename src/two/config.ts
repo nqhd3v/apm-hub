@@ -2,6 +2,8 @@
 export interface TwoEnv {
 	/** From the `SHARED_SPREADSHEET_ID` secret */
 	SHARED_SPREADSHEET_ID: string;
+	/** Jira site, for the links of the due tasks. From the `JIRA_BASE_URL` secret */
+	JIRA_BASE_URL: string;
 }
 
 declare const __ENV__: TwoEnv;

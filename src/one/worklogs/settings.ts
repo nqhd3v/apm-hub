@@ -40,6 +40,13 @@ export function readTeamRows(): unknown[][] {
 		.getValues();
 }
 
+/** Cells of the member list, `config!A8:E`: `one email | chat id | name | role | inactive` */
+export function readMemberRows(): unknown[][] {
+	return getSharedSheet(CONFIG_DATA.TAB)
+		.getRange(CONFIG_DATA.MEMBERS_RANGE)
+		.getValues();
+}
+
 /** Secret of the team webhooks. Throws when the script property is not set. */
 export function readWebhookSecret(): string {
 	const secret = PropertiesService.getScriptProperties().getProperty(

@@ -16,7 +16,7 @@ plan sheet ──► leaveStateDaily ──► date + email/state/session ──
 
 | Account | Entrypoint               | Runs          | What it does                                                                                 |
 | ------- | ------------------------ | ------------- | -------------------------------------------------------------------------------------------- |
-| one     | `leaveStateDaily`        | daily 13:30   | Reads tomorrow's column of the day-off plan sheet and writes who is off to the shared sheet. |
+| one     | `leaveStateDaily`        | daily 13:30   | Reads tomorrow's column of the day-off plan sheet and writes who is off to the shared sheet, with the [sub-tasks at risk](#sub-tasks-at-risk) of the `DEV` members among them. |
 | one     | `scheduleWorklogs`       | Mon–Fri ~07:00 | Creates a one-time trigger of `worklogsDaily` at exactly 09:15 today.                        |
 | one     | `worklogsDaily`          | Mon–Fri 09:15 | Posts the Jira worklogs of the last workday, per member, to the team space. See [Worklog report](#worklog-report). |
 | two     | `leaveNotiDaily`         | daily 16:30   | Reads the shared sheet and posts the leave reminder card to the team space.                  |
@@ -119,7 +119,7 @@ Written by the scripts of both accounts. The layout is defined once in `src/shar
 | Cell      | Written by              | Content                                                                                                        |
 | --------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `A4`      | one                     | Date the rows are about, `MM/DD/YY`                                                                            |
-| `A5:C100` | one, two (session only) | `email`, `state` (`1` full day, `0.5` half day), `session` (`-1` n/a, `0` pending, `1` morning, `2` afternoon) |
+| `A5:D100` | one, two (session only) | `email`, `state` (`1` full day, `0.5` half day), `session` (`-1` n/a, `0` pending, `1` morning, `2` afternoon), `due tasks` (issue keys joined with `, `, see [Sub-tasks at risk](#sub-tasks-at-risk)) |
 | `E5:E7`   | two                     | Last leave card: message name, thread name, users already replied to                                           |
 | `E9`      | you                     | Mode flag, see [Testing against the dev space](#testing-against-the-dev-space)                                 |
 
@@ -134,9 +134,15 @@ Edited by hand or with the [Chat commands](#chat-commands), and read by the `two
 | `D3`   | Manager as `users/{id}`, addressed directly by the reaction check. Optional                                                                             |
 | `E3`   | Team of the [worklog report](#worklog-report), read by `one`: exact Jira team name such as `AM`. Empty for every team of `G3:H`. Optional               |
 | `G3:H` | One team of the [worklog report](#worklog-report) per row: Jira team name (`teamKey`), encrypted webhook of its space (`webhook`)                      |
-| `A8:E` | One member per row: email on the `one` account, Google Chat user ID, name shown on the card, email on the `two` account (optional), `Inactive` checkbox |
+| `A8:E` | One member per row: email on the `one` account, Google Chat user ID, name shown on the card, role (`DEV`, `QC`, `PPO`, `TA`, `DS`, `SM`), `Inactive` checkbox |
 
 A person on leave who has no row here, or whose row is ticked `Inactive`, is left out of the card. Keep the Chat user ID column formatted as plain text, otherwise Sheets rounds the long number.
+
+## Sub-tasks at risk
+
+After reading who is off tomorrow, `leaveStateDaily` looks up in Jira, for each of them whose role in `config!D` is `DEV`, the sub-tasks (any sub-task type, sub-bugs included) of `JIRA_PROJECT_KEY` that are assigned to them, due tomorrow and not in the Done status category. Their keys are written to `daily_data!D` on the person's row, joined with `, ` (for example `APM-101, APM-102`). After posting the leave card, `leaveNotiDaily` of `two` replies in the card's thread, mentioning each of these people with links to their tasks, so they finish or hand them over before leaving. No reply is sent when nobody has such a task.
+
+The Jira account of a member is found by searching Jira users with their `one` email (`config!A`). When Jira hides emails, the search must return exactly one person; otherwise the member is reported as not found. Problems (account not found, Jira error) go to `WORKLOG_DEV_WEBHOOK_URL`, and the leave states are published anyway, without the tasks.
 
 ## Worklog report
 
@@ -177,7 +183,7 @@ Slash commands of the Chat app of the `two` account. A successful `/add` or `/re
 | `/remove text` | 2 | For a person who left the space and cannot be mentioned: searches `text` (at least 3 characters) in the name and both emails of the member list. Exactly one active match is made inactive; several matches are listed back and nothing is changed. |
 | `/status`            | 3   | Shows the mode (`DEV` or `PRD`), the leave date in `daily_data`, who is off, and the number of active members.                                                                             |
 
-The Chat app can be installed by anyone in the organisation, so every command is limited to active members of the `config` tab: the sender is matched by Chat user ID, or by email on the `two` account. Anyone else gets a refusal. The first members have to be entered in the sheet by hand.
+The Chat app can be installed by anyone in the organisation, so every command is limited to active members of the `config` tab: the sender is matched by Chat user ID. Anyone else gets a refusal. The first members have to be entered in the sheet by hand.
 
 Each command must be registered once for the Chat app in the Google Cloud console (Chat API, Configuration, Commands) as a slash command with the ID above. The IDs are defined in `src/two/commands/request.ts`.
 
@@ -212,6 +218,7 @@ Tab name and layout of the plan sheet, typed by `OneEnv` in `src/one/config.ts`.
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `CALENDAR_SPREADSHEET_ID`        | Plan sheet, injected into the bundle of `one`                                                        |
 | `SHARED_SPREADSHEET_ID`          | Shared sheet, injected into the bundle of both accounts                                              |
+| `JIRA_BASE_URL`                  | Also injected into `two`, for the links of the due tasks                                             |
 | `JIRA_*`, `WORKLOG_DEV_WEBHOOK_URL` | Worklog report, injected into the bundle of `one` |
 | `ONE_SCRIPT_ID`, `TWO_SCRIPT_ID` | Apps Script project each account is pushed to (`dist/<account>/.clasp.json`). Not part of the bundle |
 

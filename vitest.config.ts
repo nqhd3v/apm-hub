@@ -7,6 +7,8 @@ export default defineConfig({
 			...one,
 			SPREADSHEET_ID: "test",
 			SHARED_SPREADSHEET_ID: "test",
+			JIRA_PROJECT_KEY: "TEST",
+			JIRA_BASE_URL: "https://jira.example",
 		}),
 	},
 });

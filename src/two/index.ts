@@ -3,9 +3,13 @@ import type {
 	CommandEvent,
 } from "../shared/chat-types";
 import { createDailyTrigger, deleteAllTriggers } from "../shared/triggers";
-import { sendMessageToSpace } from "./chat/send";
+import { replyInThread, sendMessageToSpace } from "./chat/send";
 import { handleCommand } from "./commands/handle";
-import { createMessageLeaveCard } from "./leave-noti/cards";
+import { CONFIG } from "./config";
+import {
+	createDueTasksMessage,
+	createMessageLeaveCard,
+} from "./leave-noti/cards";
 import { updateLastMessageConfig } from "./leave-noti/last-message";
 import { getLeavingStatesFromSharedSheet } from "./leave-noti/states";
 import { getSettings, getTargetSpace } from "./settings";
@@ -15,7 +19,10 @@ export { checkReactions } from "./leave-noti/reactions";
 
 type Entrypoint = keyof typeof import("./index");
 
-/** Runs daily: posts tomorrow's leave reminder card to the team space. */
+/**
+ * Runs daily: posts tomorrow's leave reminder card to the team space, then
+ * replies in its thread to the members who leave sub-tasks due tomorrow open.
+ */
 export function leaveNotiDaily(): void {
 	const { fullDay, halfDay, date } = getLeavingStatesFromSharedSheet();
 
@@ -34,7 +41,15 @@ export function leaveNotiDaily(): void {
 	const msg = sendMessageToSpace(message, space);
 	if (!msg) return;
 
-	updateLastMessageConfig(msg.name, msg.thread?.name ?? "");
+	const thread = msg.thread?.name ?? "";
+	updateLastMessageConfig(msg.name, thread);
+
+	const dueTasks = createDueTasksMessage(
+		[...fullDay, ...halfDay],
+		thread,
+		CONFIG.JIRA_BASE_URL,
+	);
+	if (dueTasks && thread) replyInThread(dueTasks);
 }
 
 /** Message sent to the Chat app. Only slash commands are answered. */

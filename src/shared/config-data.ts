@@ -13,9 +13,14 @@ export const CONFIG_DATA = {
 	/** From row 3, under its header row: `teamKey | webhook`, the Jira team name and the encrypted webhook of its space */
 	WORKLOG_TEAMS_RANGE: "G3:H",
 	WORKLOG_TEAMS_FIRST_ROW: 3,
-	/** From row 8, under its header row: `one email | chat id | name | two email | inactive` */
+	/** From row 8, under its header row: `one email | chat id | name | role | inactive` */
 	MEMBERS_RANGE: "A8:E",
 	MEMBERS_FIRST_ROW: 8,
 	MEMBER_ID_COL: 2,
+	/** `DEV`, `QC`, `PPO`, `TA`, `DS` or `SM` */
+	MEMBER_ROLE_COL: 4,
 	MEMBER_INACTIVE_COL: 5,
 } as const;
+
+/** Role whose sub-tasks due on the leave day are reported as a risk */
+export const ROLE_DEV = "DEV";

@@ -32,7 +32,10 @@ const SECRETS = {
 		JIRA_API_TOKEN: "JIRA_API_TOKEN",
 		WORKLOG_DEV_WEBHOOK_URL: "WORKLOG_DEV_WEBHOOK_URL",
 	},
-	two: { SHARED_SPREADSHEET_ID: "SHARED_SPREADSHEET_ID" },
+	two: {
+		SHARED_SPREADSHEET_ID: "SHARED_SPREADSHEET_ID",
+		JIRA_BASE_URL: "JIRA_BASE_URL",
+	},
 };
 // `node build.mjs two` builds one account only; default is all of them
 const requested = process.argv.slice(2);

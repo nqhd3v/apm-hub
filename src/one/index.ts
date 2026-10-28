@@ -1,4 +1,4 @@
-import { getDayToCheck } from "../shared/date";
+import { getDayToCheck, getIsoDayToCheck } from "../shared/date";
 import {
 	createDailyTrigger,
 	createTriggerAt,
@@ -8,11 +8,17 @@ import {
 	deleteTriggersOf,
 } from "../shared/triggers";
 import { CONFIG } from "./config";
-import { pickLeaveRows, readPlanRows } from "./leave-state/plan";
+import { devEmails, fetchDueTasks } from "./leave-state/due-tasks";
+import {
+	type PersonLeave,
+	pickLeaveRows,
+	readPlanRows,
+} from "./leave-state/plan";
 import { updateSharedSheet } from "./leave-state/publish";
 import { createProblemsMessage } from "./worklogs/cards";
 import { reportWorklogs } from "./worklogs/report";
 import { sendToWebhook } from "./worklogs/send";
+import { readMemberRows } from "./worklogs/settings";
 import { getLastWorkday, todayAt } from "./worklogs/summary";
 
 type Entrypoint = keyof typeof import("./index");
@@ -20,7 +26,45 @@ type Entrypoint = keyof typeof import("./index");
 /** Exact time of the worklog report, Asia/Ho_Chi_Minh */
 const WORKLOG_REPORT = { hour: 9, minute: 15 } as const;
 
-/** Runs daily: publishes tomorrow's day-off states to the shared sheet. */
+/**
+ * Keys of the unfinished sub-tasks due tomorrow of the `DEV` members of `states`, by
+ * lowercased email. A Jira failure is reported to the test space and leaves
+ * the tasks out, so that the leave states are still published.
+ */
+function dueTasksOf(states: PersonLeave[]): Map<string, string[]> {
+	const day = getIsoDayToCheck();
+	let tasks = new Map<string, string[]>();
+	let problems: string[];
+	try {
+		const devs = devEmails(readMemberRows());
+		const emails = states
+			.map((s) => s.email.toLowerCase())
+			.filter((email) => devs.has(email));
+		Logger.log(`DEV members off on ${day}: ${JSON.stringify(emails)}`);
+		({ tasks, problems } = fetchDueTasks(emails, day));
+		Logger.log(`Due tasks: ${JSON.stringify([...tasks])}`);
+	} catch (error) {
+		problems = [error instanceof Error ? error.message : String(error)];
+	}
+	if (problems.length) {
+		Logger.log(`Due task problems: ${JSON.stringify(problems)}`);
+		try {
+			sendToWebhook(
+				createProblemsMessage(day, problems, "Due tasks"),
+				CONFIG.WORKLOG_DEV_WEBHOOK_URL,
+			);
+		} catch (error) {
+			Logger.log(`Cannot report the due task problems: ${error}`);
+		}
+	}
+
+	return tasks;
+}
+
+/**
+ * Runs daily: publishes tomorrow's day-off states to the shared sheet, with
+ * the unfinished sub-tasks due tomorrow of the `DEV` members who are off.
+ */
 export function leaveStateDaily(): void {
 	const date = getDayToCheck();
 	Logger.log(` ------ Start checking for ${date}`);
@@ -33,7 +77,7 @@ export function leaveStateDaily(): void {
 		Logger.log(` ------ Check finished with result: ${JSON.stringify(states)}`);
 	}
 
-	updateSharedSheet(states ?? [], date);
+	updateSharedSheet(states ?? [], date, dueTasksOf(states ?? []));
 }
 
 /**

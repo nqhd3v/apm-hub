@@ -2,6 +2,7 @@ import {
 	DAILY_DATA,
 	LEAVE_FULL,
 	LEAVE_HALF,
+	parseDueTasks,
 	SESSION_NONE,
 } from "../../shared/daily-data";
 import { formatDate } from "../../shared/date";
@@ -13,9 +14,10 @@ export interface MemberLeave {
 	id: string;
 	name: string;
 	oneEmail: string;
-	twoEmail: string;
 	state: number;
 	session: number;
+	/** Keys of the unfinished sub-tasks due on the leave day, `DEV` members only */
+	dueTasks: string[];
 }
 
 export interface LeaveStates {
@@ -23,20 +25,17 @@ export interface LeaveStates {
 	halfDay: MemberLeave[];
 }
 
-/** True when `leave` belongs to the Chat user (`users/{id}`) or to one of their emails. */
+/** True when `leave` belongs to the Chat user (`users/{id}`) or to their `one` email. */
 export function ownsLeave(
 	leave: MemberLeave,
 	user: { name?: string; email?: string },
 ): boolean {
 	if (user.name && user.name === `users/${leave.id}`) return true;
 
-	return (
-		!!user.email &&
-		(user.email === leave.oneEmail || user.email === leave.twoEmail)
-	);
+	return !!user.email && user.email === leave.oneEmail;
 }
 
-/** Splits `email | state | session` rows into full-day and half-day leaves of known members. */
+/** Splits `email | state | session | due tasks` rows into full-day and half-day leaves of known members. */
 export function parseLeaveRows(
 	rows: unknown[][],
 	members: Members,
@@ -54,9 +53,9 @@ export function parseLeaveRows(
 			id: member.id,
 			name: member.name,
 			oneEmail,
-			twoEmail: member.email,
 			state,
 			session: state === LEAVE_HALF ? Number(row[2]) : SESSION_NONE,
+			dueTasks: parseDueTasks(row[DAILY_DATA.DUE_TASKS_COL - 1]),
 		};
 
 		if (state === LEAVE_FULL) fullDay.push(leave);
@@ -66,19 +65,11 @@ export function parseLeaveRows(
 	return { fullDay, halfDay };
 }
 
-/** 0-based index of the half-day row owned by `email` (address on either account), or -1. */
-export function findHalfDayRow(
-	rows: unknown[][],
-	email: string,
-	members: Members,
-): number {
+/** 0-based index of the half-day row of `email` (address on the `one` account), or -1. */
+export function findHalfDayRow(rows: unknown[][], email: string): number {
 	return rows.findIndex((row) => {
 		const oneEmail = String(row[0] ?? "").trim();
-		return (
-			oneEmail !== "" &&
-			row[1] === LEAVE_HALF &&
-			(oneEmail === email || members[oneEmail]?.email === email)
-		);
+		return oneEmail !== "" && row[1] === LEAVE_HALF && oneEmail === email;
 	});
 }
 
@@ -101,7 +92,7 @@ export function updateSessionByEmail(email: string, session: number): void {
 	const sheet = getDailyDataSheet();
 	const rows = sheet.getRange(DAILY_DATA.ROWS_RANGE).getValues();
 
-	const rowIndex = findHalfDayRow(rows, email, getSettings().members);
+	const rowIndex = findHalfDayRow(rows, email);
 	if (rowIndex === -1) {
 		Logger.log(
 			` - Cannot update session because no row with email ("${email}")`,

@@ -19,3 +19,9 @@ export function formatDate(date: Date): string {
 export function getDayToCheck(now: number = Date.now()): string {
 	return formatDate(new Date(now + DAY_MS));
 }
+
+/** Tomorrow formatted `YYYY-MM-DD`, as in JQL */
+export function getIsoDayToCheck(now: number = Date.now()): string {
+	// "sv-SE" formats as YYYY-MM-DD
+	return new Date(now + DAY_MS).toLocaleDateString("sv-SE");
+}

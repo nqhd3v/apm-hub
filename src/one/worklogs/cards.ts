@@ -130,8 +130,9 @@ export function createWorklogCard(
 export function createProblemsMessage(
 	date: string,
 	problems: string[],
+	report = "Worklog report",
 ): ChatMessage {
 	return {
-		text: `*Worklog report of ${date}: ${plural(problems.length, "problem")}*\n${problems.map((p) => `• ${p}`).join("\n")}`,
+		text: `*${report} of ${date}: ${plural(problems.length, "problem")}*\n${problems.map((p) => `• ${p}`).join("\n")}`,
 	};
 }

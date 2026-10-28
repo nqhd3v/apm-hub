@@ -2,17 +2,17 @@ import { describe, expect, test } from "vitest";
 import { parseMembers, parseSettings } from "../../src/two/settings";
 
 const memberRows: unknown[][] = [
-	[" a@one.example ", "101", "A", "a@two.example", false],
-	["b@one.example", "102", "B", "b@two.example", true],
-	["d@one.example", "104", "D", "d@two.example", "true"],
-	["c@one.example", "", "C", "c@two.example", false],
+	[" a@one.example ", "101", "A", "DEV", false],
+	["b@one.example", "102", "B", "QC", true],
+	["d@one.example", "104", "D", "SM", "true"],
+	["c@one.example", "", "C", "PPO", false],
 	["", "", "", "", false],
 ];
 
 describe("parseMembers", () => {
 	test("keeps active rows that have an email and a chat id", () => {
 		expect(parseMembers(memberRows)).toEqual({
-			"a@one.example": { id: "101", name: "A", email: "a@two.example" },
+			"a@one.example": { id: "101", name: "A" },
 		});
 	});
 });

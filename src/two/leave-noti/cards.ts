@@ -245,3 +245,30 @@ export function createRejectMessage(
 		privateMessageViewer: { name: userName },
 	};
 }
+
+/**
+ * Reply in the thread of the leave card mentioning each member who is off
+ * with unfinished sub-tasks due that day, or null when nobody has any.
+ */
+export function createDueTasksMessage(
+	people: MemberLeave[],
+	threadName: string,
+	jiraUrl: string,
+): ChatMessage | null {
+	const risky = people.filter((p) => p.dueTasks.length);
+	if (!risky.length) return null;
+
+	const base = jiraUrl.replace(/\/+$/, "");
+	const lines = risky.map(
+		(p) =>
+			`• <users/${p.id}>: ${p.dueTasks.map((key) => `<${base}/browse/${key}|${key}>`).join(", ")}`,
+	);
+	return {
+		text: [
+			"⚠️ *Sub-tasks due tomorrow, not done yet*",
+			...lines,
+			"Please finish, hand over or update the due date before your leave.",
+		].join("\n"),
+		thread: { name: threadName },
+	};
+}

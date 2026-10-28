@@ -17,11 +17,11 @@ export function jiraBaseUrl(): string {
 	return CONFIG.JIRA_BASE_URL.replace(/\/+$/, "");
 }
 
-function authHeader(): string {
+export function authHeader(): string {
 	return `Basic ${Utilities.base64Encode(`${CONFIG.JIRA_EMAIL}:${CONFIG.JIRA_API_TOKEN}`)}`;
 }
 
-function request(
+export function request(
 	path: string,
 	auth: string,
 	payload?: object,
@@ -36,7 +36,7 @@ function request(
 	};
 }
 
-function parse<T>(
+export function parse<T>(
 	response: GoogleAppsScript.URL_Fetch.HTTPResponse,
 	url: string,
 ): T {
@@ -64,7 +64,7 @@ export function worklogSearchUrl(day: Workday, teamId?: string): string {
 	return `${jiraBaseUrl()}/issues/?jql=${encodeURIComponent(jql)}`;
 }
 
-interface SearchIssue {
+export interface SearchIssue {
 	key: string;
 	fields: Record<string, unknown> & { summary?: string };
 }
@@ -74,7 +74,7 @@ interface SearchPage {
 	nextPageToken?: string;
 }
 
-function searchIssues(
+export function searchIssues(
 	jql: string,
 	fields: string[],
 	auth: string,

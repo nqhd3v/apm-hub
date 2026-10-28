@@ -6,21 +6,15 @@ import {
 import { parseCommand } from "../../../src/two/commands/request";
 
 const rows: unknown[][] = [
-	[
-		"hung.le@one.example",
-		"101",
-		"Danto (Hung LE)",
-		"hung.lc@two.example",
-		false,
-	],
-	["hung.tran@one.example", "102", "Hung TRAN", "hung.tt@two.example", false],
-	["lan.vo@one.example", "103", "Lan VO", "", true],
+	["hung.le@one.example", "101", "Danto (Hung LE)", "DEV", false],
+	["hung.tran@one.example", "102", "Hung TRAN", "DEV", false],
+	["lan.vo@one.example", "103", "Lan VO", "QC", true],
 	["", "", "", "", false],
 ];
 
 describe("searchMemberRows", () => {
-	test("matches part of either email or of the name, ignoring case", () => {
-		expect(searchMemberRows(rows, "hung.lc")).toEqual([
+	test("matches part of the email or of the name, ignoring case", () => {
+		expect(searchMemberRows(rows, "hung.le")).toEqual([
 			{
 				index: 0,
 				name: "Danto (Hung LE)",
@@ -40,13 +34,14 @@ describe("searchMemberRows", () => {
 	test("returns every match, and nothing for an empty text", () => {
 		expect(searchMemberRows(rows, "hung")).toHaveLength(2);
 		expect(searchMemberRows(rows, "nobody")).toEqual([]);
+		expect(searchMemberRows(rows, "dev")).toEqual([]);
 		expect(searchMemberRows(rows, "  ")).toEqual([]);
 	});
 });
 
 describe("pickMemberToRemove", () => {
 	test("removes the only active match", () => {
-		expect(pickMemberToRemove(searchMemberRows(rows, "hung.lc"))).toMatchObject(
+		expect(pickMemberToRemove(searchMemberRows(rows, "hung.le"))).toMatchObject(
 			{ status: "removed", member: { index: 0 } },
 		);
 	});

@@ -79,13 +79,13 @@ describe("parseCommand", () => {
 
 describe("isMember", () => {
 	const members = {
-		"a@one.example": { id: "101", name: "A", email: "a@two.example" },
-		"b@one.example": { id: "102", name: "B", email: "" },
+		"a@one.example": { id: "101", name: "A" },
+		"b@one.example": { id: "102", name: "B" },
 	};
 
-	test("matches an active member by chat id or two email", () => {
+	test("matches an active member by chat id", () => {
 		expect(isMember(members, { name: "users/102" })).toBe(true);
-		expect(isMember(members, { email: "A@two.example" })).toBe(true);
+		expect(isMember(members, { email: "a@one.example" })).toBe(false);
 	});
 
 	test("rejects everyone else", () => {
@@ -130,9 +130,9 @@ describe("formatStatus", () => {
 		id: "1",
 		name,
 		oneEmail: "o",
-		twoEmail: "t",
 		state: session === -1 ? 1 : 0.5,
 		session,
+		dueTasks: [],
 	});
 
 	test("lists the mode, the date and who is off", () => {

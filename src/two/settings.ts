@@ -6,8 +6,6 @@ export interface Member {
 	/** Google Chat user id */
 	id: string;
 	name: string;
-	/** Email on the `two` account */
-	email: string;
 }
 
 /** Email on the `one` account -> the same person on the `two` account */
@@ -36,7 +34,7 @@ export function isInactive(row: unknown[]): boolean {
 	return value.toUpperCase() === "TRUE";
 }
 
-/** Active rows of `one email | chat id | name | two email | inactive`. */
+/** Active rows of `one email | chat id | name | role | inactive`. */
 export function parseMembers(rows: unknown[][]): Members {
 	const members: Members = {};
 
@@ -45,7 +43,7 @@ export function parseMembers(rows: unknown[][]): Members {
 		const id = text(row[1]);
 		if (!oneEmail || !id || isInactive(row)) continue;
 
-		members[oneEmail] = { id, name: text(row[2]), email: text(row[3]) };
+		members[oneEmail] = { id, name: text(row[2]) };
 	}
 
 	return members;
